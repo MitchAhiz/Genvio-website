@@ -1,0 +1,685 @@
+<title>MARY Catalogue Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --cream: #FAF7F2;
+  --warm-white: #FDFCFA;
+  --blush: #E8D5CC;
+  --dusty-rose: #C4A68E;
+  --charcoal: #2C2420;
+  --brown: #5C4A3E;
+  --muted: #8A7B72;
+  --border: #E8E2DB;
+  --surface: #F5F0EB;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --cream: #1A1714;
+    --warm-white: #22201C;
+    --blush: #3D3430;
+    --dusty-rose: #8A7768;
+    --charcoal: #F0EBE4;
+    --brown: #C4B8AB;
+    --muted: #9A8E84;
+    --border: #3A3530;
+    --surface: #262320;
+  }
+}
+:root[data-theme="dark"] {
+  --cream: #1A1714;
+  --warm-white: #22201C;
+  --blush: #3D3430;
+  --dusty-rose: #8A7768;
+  --charcoal: #F0EBE4;
+  --brown: #C4B8AB;
+  --muted: #9A8E84;
+  --border: #3A3530;
+  --surface: #262320;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-body);
+  color: var(--charcoal);
+  background: var(--cream);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* Navbar */
+.nav {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, var(--cream) 95%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner {
+  max-width: 72rem; margin: 0 auto; padding: 0 1rem;
+  height: 3.5rem; display: flex; align-items: center; justify-content: space-between;
+}
+.logo {
+  font-family: var(--font-display); font-size: 1.25rem; font-weight: 600;
+  letter-spacing: 0.05em; color: var(--charcoal); text-decoration: none; cursor: pointer;
+}
+.nav-actions { display: flex; align-items: center; gap: 1rem; }
+.nav-btn {
+  background: none; border: none; padding: 0.5rem; color: var(--brown);
+  cursor: pointer; display: flex; align-items: center; gap: 0.375rem;
+  transition: color 0.15s;
+}
+.nav-btn:hover { color: var(--charcoal); }
+.badge {
+  font-size: 0.7rem; font-weight: 600; background: var(--charcoal); color: var(--cream);
+  border-radius: 9999px; width: 1.25rem; height: 1.25rem;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Category bar */
+.cat-bar {
+  position: sticky; top: 3.5rem; z-index: 30;
+  background: color-mix(in srgb, var(--cream) 95%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  padding: 0.75rem 1rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  overflow-x: auto; scrollbar-width: none;
+}
+.cat-bar::-webkit-scrollbar { display: none; }
+.cat-pill {
+  flex-shrink: 0; padding: 0.375rem 1rem; border-radius: 9999px;
+  font-size: 0.875rem; font-weight: 500; border: none; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  background: var(--surface); color: var(--brown);
+}
+.cat-pill:hover { background: color-mix(in srgb, var(--blush) 40%, transparent); }
+.cat-pill.active { background: var(--charcoal); color: var(--cream); }
+
+/* Page header */
+.page-header { max-width: 72rem; margin: 0 auto; padding: 1.5rem 1rem 1rem; }
+.page-title {
+  font-family: var(--font-display); font-size: clamp(1.5rem, 4vw, 1.875rem);
+  font-weight: 600; color: var(--charcoal); text-wrap: balance;
+}
+.page-sub { font-size: 0.875rem; color: var(--muted); margin-top: 0.25rem; }
+
+/* Product grid */
+.grid {
+  max-width: 72rem; margin: 0 auto; padding: 0 1rem 4rem;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem 1rem;
+}
+@media (min-width: 640px) { .grid { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; } }
+@media (min-width: 1024px) { .grid { grid-template-columns: repeat(4, 1fr); gap: 1.5rem; } }
+
+.card { cursor: pointer; }
+.card-img {
+  aspect-ratio: 3/4; overflow: hidden; border-radius: 0.75rem; background: var(--surface);
+}
+.card-img img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.5s ease;
+}
+.card:hover .card-img img { transform: scale(1.03); }
+.card-info { margin-top: 0.625rem; padding: 0 0.125rem; }
+.card-brand {
+  font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+}
+.card-name {
+  font-size: 0.875rem; font-weight: 500; color: var(--charcoal);
+  margin-top: 0.125rem; line-height: 1.4;
+}
+.card-price { font-size: 0.875rem; font-weight: 600; color: var(--brown); margin-top: 0.25rem; }
+.card-meta { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+.card-add {
+  margin-top: 0.5rem; width: 100%; padding: 0.5rem; font-size: 0.875rem;
+  font-weight: 500; color: var(--charcoal); background: var(--surface);
+  border: none; border-radius: 0.5rem; cursor: pointer;
+  transition: background 0.15s; font-family: var(--font-body);
+}
+.card-add:hover { background: color-mix(in srgb, var(--blush) 40%, transparent); }
+.card-add:active { transform: translateY(1px); }
+
+/* Product Detail */
+.detail { display: none; max-width: 72rem; margin: 0 auto; padding: 0 1rem 4rem; }
+.detail.active { display: block; }
+.back-btn {
+  display: flex; align-items: center; gap: 0.25rem; padding: 1rem 0;
+  font-size: 0.875rem; color: var(--muted); background: none; border: none;
+  cursor: pointer; font-family: var(--font-body); transition: color 0.15s;
+}
+.back-btn:hover { color: var(--charcoal); }
+.detail-layout { display: grid; gap: 2rem; }
+@media (min-width: 1024px) { .detail-layout { grid-template-columns: 1fr 1fr; gap: 2.5rem; } }
+.detail-hero {
+  aspect-ratio: 3/4; border-radius: 0.75rem; overflow: hidden; background: var(--surface);
+  cursor: pointer;
+}
+.detail-hero img { width: 100%; height: 100%; object-fit: cover; }
+.thumbs { display: flex; gap: 0.5rem; margin-top: 0.75rem; overflow-x: auto; }
+.thumb {
+  width: 4rem; height: 5rem; border-radius: 0.5rem; overflow: hidden; flex-shrink: 0;
+  border: 2px solid transparent; cursor: pointer; transition: border-color 0.15s;
+}
+.thumb.active { border-color: var(--charcoal); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.detail-brand {
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+}
+.detail-name {
+  font-family: var(--font-display); font-size: clamp(1.5rem, 4vw, 1.875rem);
+  font-weight: 600; color: var(--charcoal); margin-top: 0.25rem; text-wrap: balance;
+}
+.detail-price { font-size: 1.25rem; font-weight: 600; color: var(--brown); margin-top: 0.5rem; }
+.colour-label { font-size: 0.875rem; font-weight: 500; color: var(--charcoal); margin-top: 1.5rem; }
+.colour-label span { font-weight: 400; color: var(--muted); }
+.swatches { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+.swatch {
+  width: 2rem; height: 2rem; border-radius: 9999px; border: 2px solid var(--border);
+  cursor: pointer; transition: transform 0.15s, border-color 0.15s;
+}
+.swatch.active { border-color: var(--charcoal); transform: scale(1.1); }
+.swatch:hover { border-color: var(--dusty-rose); }
+.sizes-label { font-size: 0.875rem; font-weight: 500; color: var(--charcoal); margin-top: 1.5rem; margin-bottom: 0.75rem; }
+.size-row {
+  display: flex; align-items: center; gap: 1rem; padding: 0.375rem 0;
+}
+.size-name { font-size: 0.875rem; font-weight: 500; width: 2.5rem; }
+.size-stock { font-size: 0.75rem; color: var(--muted); flex: 1; }
+.qty-control {
+  display: flex; align-items: center; border: 1px solid var(--border);
+  border-radius: 0.5rem; overflow: hidden;
+}
+.qty-btn {
+  padding: 0.375rem 0.625rem; font-size: 0.875rem; color: var(--muted);
+  background: none; border: none; cursor: pointer; font-family: var(--font-body);
+}
+.qty-btn:hover { color: var(--charcoal); }
+.qty-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.qty-val {
+  width: 3rem; text-align: center; font-size: 0.875rem; padding: 0.375rem 0;
+  border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  background: transparent; border-top: none; border-bottom: none;
+  color: var(--charcoal); font-family: var(--font-body);
+}
+.qty-val:disabled { opacity: 0.3; }
+.add-btn {
+  margin-top: 2rem; width: 100%; padding: 0.75rem; border-radius: 0.75rem;
+  background: var(--charcoal); color: var(--cream); font-size: 0.875rem;
+  font-weight: 600; border: none; cursor: pointer; font-family: var(--font-body);
+  transition: background 0.15s; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.add-btn:hover { background: var(--brown); }
+.add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.add-btn:active:not(:disabled) { transform: translateY(1px); }
+
+/* Bag */
+.bag { display: none; max-width: 40rem; margin: 0 auto; padding: 0 1rem 4rem; }
+.bag.active { display: block; }
+.bag-header {
+  padding: 1.5rem 0 1rem; display: flex; align-items: baseline; justify-content: space-between;
+}
+.bag-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; color: var(--charcoal); }
+.bag-continue {
+  font-size: 0.875rem; color: var(--muted); cursor: pointer; background: none;
+  border: none; font-family: var(--font-body); transition: color 0.15s;
+}
+.bag-continue:hover { color: var(--charcoal); }
+.bag-item {
+  display: flex; gap: 1rem; padding: 0.75rem; background: var(--warm-white);
+  border-radius: 0.75rem; border: 1px solid var(--border); margin-bottom: 1rem;
+}
+.bag-item-img {
+  width: 5rem; height: 6rem; object-fit: cover; border-radius: 0.5rem; flex-shrink: 0;
+}
+.bag-item-info { flex: 1; min-width: 0; }
+.bag-item-name { font-size: 0.875rem; font-weight: 500; color: var(--charcoal); }
+.bag-item-meta { font-size: 0.75rem; color: var(--muted); margin-top: 0.125rem; }
+.bag-item-price { font-size: 0.875rem; font-weight: 600; color: var(--brown); margin-top: 0.25rem; }
+.bag-item-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem; }
+.bag-remove {
+  font-size: 0.75rem; color: var(--muted); background: none; border: none;
+  cursor: pointer; font-family: var(--font-body); transition: color 0.15s;
+}
+.bag-remove:hover { color: var(--charcoal); }
+.bag-item-total { font-size: 0.875rem; font-weight: 600; color: var(--charcoal); flex-shrink: 0; }
+.bag-footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.bag-total-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.5rem; }
+.bag-total-label { font-size: 0.875rem; color: var(--muted); }
+.bag-total-val { font-size: 1.25rem; font-weight: 600; color: var(--charcoal); }
+.send-btn {
+  width: 100%; padding: 0.75rem; border-radius: 0.75rem; background: var(--charcoal);
+  color: var(--cream); font-size: 0.875rem; font-weight: 600; border: none;
+  cursor: pointer; font-family: var(--font-body); transition: background 0.15s;
+}
+.send-btn:hover { background: var(--brown); }
+.send-btn:active { transform: translateY(1px); }
+
+/* Empty bag */
+.bag-empty { text-align: center; padding: 5rem 1rem; }
+.bag-empty-icon {
+  width: 4rem; height: 4rem; margin: 0 auto 1rem; border-radius: 9999px;
+  background: var(--surface); display: flex; align-items: center; justify-content: center;
+}
+.bag-empty h2 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; color: var(--charcoal); }
+.bag-empty p { font-size: 0.875rem; color: var(--muted); margin-top: 0.5rem; }
+.bag-empty-btn {
+  display: inline-block; margin-top: 1.5rem; padding: 0.625rem 1.5rem;
+  background: var(--charcoal); color: var(--cream); font-size: 0.875rem;
+  font-weight: 500; border-radius: 0.5rem; border: none; cursor: pointer;
+  font-family: var(--font-body); transition: background 0.15s;
+}
+.bag-empty-btn:hover { background: var(--brown); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(120%);
+  background: var(--charcoal); color: var(--cream); padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem; font-size: 0.875rem; font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15); z-index: 100;
+  transition: transform 0.3s ease; pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* Fullscreen viewer */
+.viewer {
+  display: none; position: fixed; inset: 0; z-index: 60;
+  background: rgba(44,36,32,0.95); align-items: center; justify-content: center;
+}
+.viewer.active { display: flex; }
+.viewer img { max-width: 100%; max-height: 90vh; object-fit: contain; }
+.viewer-close {
+  position: absolute; top: 1rem; right: 1rem; background: none; border: none;
+  color: rgba(250,247,242,0.8); cursor: pointer; padding: 0.5rem;
+}
+.viewer-close:hover { color: var(--cream); }
+.viewer-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: rgba(250,247,242,0.7);
+  cursor: pointer; padding: 0.5rem;
+}
+.viewer-nav:hover { color: var(--cream); }
+.viewer-nav.prev { left: 0.75rem; }
+.viewer-nav.next { right: 0.75rem; }
+.viewer-counter {
+  position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+  color: rgba(250,247,242,0.7); font-size: 0.875rem; font-weight: 500;
+}
+
+/* Utility */
+.hidden { display: none !important; }
+</style>
+
+<!-- Navbar -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="logo" onclick="showCatalogue()">MARY</a>
+    <div class="nav-actions">
+      <button class="nav-btn" aria-label="Search" onclick="alert('Search — type to filter by name, brand, or category')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <button class="nav-btn" id="bagBtn" onclick="showBag()" aria-label="Shopping bag">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span class="badge hidden" id="bagBadge">0</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Category bar -->
+<div class="cat-bar" id="catBar"></div>
+
+<!-- Catalogue -->
+<div id="catalogueView">
+  <div class="page-header">
+    <h1 class="page-title">New Collection</h1>
+    <p class="page-sub">Curated wholesale pieces for your store</p>
+  </div>
+  <div class="grid" id="productGrid"></div>
+</div>
+
+<!-- Product Detail -->
+<div class="detail" id="detailView">
+  <button class="back-btn" onclick="showCatalogue()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+    Back
+  </button>
+  <div class="detail-layout">
+    <div>
+      <div class="detail-hero" id="detailHero" onclick="openViewer()"></div>
+      <div class="thumbs" id="detailThumbs"></div>
+    </div>
+    <div id="detailInfo"></div>
+  </div>
+</div>
+
+<!-- Bag -->
+<div class="bag" id="bagView"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Fullscreen viewer -->
+<div class="viewer" id="viewer">
+  <button class="viewer-close" onclick="closeViewer()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+  </button>
+  <button class="viewer-nav prev" onclick="viewerPrev()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+  </button>
+  <button class="viewer-nav next" onclick="viewerNext()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+  </button>
+  <img id="viewerImg" src="" alt="" />
+  <div class="viewer-counter" id="viewerCounter"></div>
+</div>
+
+<script>
+const products = [
+  { id:"dress-001", name:"Satin Midi Dress", slug:"satin-midi-dress", brand:"Élan", category:"Dresses", price:32500, isNew:true,
+    images:["https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&q=80","https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&q=80","https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80"],
+    variants:[{colour:"Burgundy",hex:"#722F37",image:"https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&q=80",sizes:{XS:2,S:5,M:8,L:3,XL:1}},{colour:"Black",hex:"#1A1A1A",image:"https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&q=80",sizes:{XS:0,S:4,M:7,L:2,XL:0}}]},
+  { id:"top-001", name:"Silk Wrap Blouse", slug:"silk-wrap-blouse", brand:"Maison Noir", category:"Tops", price:18500, isNew:true,
+    images:["https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=800&q=80","https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&q=80"],
+    variants:[{colour:"Ivory",hex:"#FFFFF0",image:"https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=800&q=80",sizes:{XS:3,S:6,M:10,L:4,XL:2}},{colour:"Dusty Rose",hex:"#DCAE96",image:"https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&q=80",sizes:{XS:1,S:3,M:5,L:2,XL:0}}]},
+  { id:"trouser-001", name:"High-Waist Wide Leg Trousers", slug:"high-waist-wide-leg-trousers", brand:"Élan", category:"Trousers", price:24000, isNew:false,
+    images:["https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80","https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=800&q=80"],
+    variants:[{colour:"Camel",hex:"#C19A6B",image:"https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80",sizes:{XS:0,S:4,M:6,L:5,XL:3}},{colour:"Black",hex:"#1A1A1A",image:"https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=800&q=80",sizes:{XS:2,S:7,M:9,L:4,XL:1}}]},
+  { id:"dress-002", name:"Linen Shirt Dress", slug:"linen-shirt-dress", brand:"Terre", category:"Dresses", price:27000, isNew:true,
+    images:["https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&q=80","https://images.unsplash.com/photo-1502716119720-b23a1e3b2b22?w=800&q=80"],
+    variants:[{colour:"Oat",hex:"#D4C5A9",image:"https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&q=80",sizes:{XS:4,S:8,M:12,L:6,XL:3}},{colour:"Sage",hex:"#9CAF88",image:"https://images.unsplash.com/photo-1502716119720-b23a1e3b2b22?w=800&q=80",sizes:{XS:2,S:5,M:7,L:3,XL:1}}]},
+  { id:"top-002", name:"Ribbed Knit Tank", slug:"ribbed-knit-tank", brand:"Maison Noir", category:"Tops", price:9500, isNew:false,
+    images:["https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&q=80"],
+    variants:[{colour:"White",hex:"#FAFAFA",image:"https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&q=80",sizes:{XS:5,S:10,M:15,L:8,XL:4}},{colour:"Black",hex:"#1A1A1A",image:"https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&q=80",sizes:{XS:3,S:8,M:12,L:6,XL:2}},{colour:"Taupe",hex:"#B8A99A",image:"https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&q=80",sizes:{XS:2,S:5,M:9,L:4,XL:1}}]},
+  { id:"dress-003", name:"Pleated Maxi Skirt", slug:"pleated-maxi-skirt", brand:"Terre", category:"Skirts", price:21000, isNew:false,
+    images:["https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=800&q=80","https://images.unsplash.com/photo-1551163943-3f6a855d1153?w=800&q=80"],
+    variants:[{colour:"Champagne",hex:"#F7E7CE",image:"https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=800&q=80",sizes:{XS:3,S:6,M:8,L:4,XL:2}}]},
+  { id:"top-003", name:"Oversized Blazer", slug:"oversized-blazer", brand:"Élan", category:"Outerwear", price:38000, isNew:true,
+    images:["https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80","https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80"],
+    variants:[{colour:"Charcoal",hex:"#36454F",image:"https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80",sizes:{XS:1,S:3,M:5,L:3,XL:2}},{colour:"Camel",hex:"#C19A6B",image:"https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80",sizes:{XS:2,S:4,M:6,L:3,XL:1}}]},
+  { id:"dress-004", name:"Off-Shoulder Bodycon", slug:"off-shoulder-bodycon", brand:"Maison Noir", category:"Dresses", price:19500, isNew:false,
+    images:["https://images.unsplash.com/photo-1518577915332-c2a19f149a75?w=800&q=80"],
+    variants:[{colour:"Black",hex:"#1A1A1A",image:"https://images.unsplash.com/photo-1518577915332-c2a19f149a75?w=800&q=80",sizes:{XS:4,S:8,M:10,L:5,XL:2}},{colour:"Wine",hex:"#722F37",image:"https://images.unsplash.com/photo-1518577915332-c2a19f149a75?w=800&q=80",sizes:{XS:2,S:5,M:7,L:3,XL:1}}]}
+];
+
+let bag = [];
+let activeCategory = null;
+let currentProduct = null;
+let selectedColour = null;
+let quantities = {};
+let viewerImages = [];
+let viewerIndex = 0;
+
+function fmt(n) { return '₦' + n.toLocaleString('en-NG'); }
+
+function getSizeRange(variants) {
+  const order = ['XS','S','M','L','XL'];
+  const avail = new Set();
+  variants.forEach(v => Object.entries(v.sizes).forEach(([s,q]) => { if (q > 0) avail.add(s); }));
+  const f = order.find(s => avail.has(s));
+  const l = order.findLast(s => avail.has(s));
+  return f && l ? f + '–' + l : '';
+}
+
+// Categories
+function renderCats() {
+  const cats = ['All', ...new Set(products.map(p => p.category))];
+  document.getElementById('catBar').innerHTML = cats.map(c =>
+    `<button class="cat-pill${(c === 'All' && !activeCategory) || c === activeCategory ? ' active' : ''}" onclick="filterCat('${c}')">${c}</button>`
+  ).join('');
+}
+
+function filterCat(c) {
+  activeCategory = c === 'All' ? null : c;
+  renderCats();
+  renderGrid();
+}
+
+// Grid
+function renderGrid() {
+  let list = activeCategory ? products.filter(p => p.category === activeCategory) : [...products];
+  list.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0));
+  document.getElementById('productGrid').innerHTML = list.map(p => `
+    <div class="card" onclick="showDetail('${p.slug}')">
+      <div class="card-img"><img src="${p.images[0]}" alt="${p.name}" loading="lazy" /></div>
+      <div class="card-info">
+        <div class="card-brand">${p.brand}</div>
+        <div class="card-name">${p.name}</div>
+        <div class="card-price">${fmt(p.price)}</div>
+        <div class="card-meta">${p.variants.length} ${p.variants.length === 1 ? 'colour' : 'colours'} · ${getSizeRange(p.variants)}</div>
+        <button class="card-add" onclick="event.stopPropagation(); showDetail('${p.slug}')">Add to Bag</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Detail
+function showDetail(slug) {
+  currentProduct = products.find(p => p.slug === slug);
+  if (!currentProduct) return;
+  selectedColour = currentProduct.variants[0].colour;
+  quantities = {};
+  document.getElementById('catalogueView').style.display = 'none';
+  document.getElementById('catBar').style.display = 'none';
+  document.getElementById('bagView').classList.remove('active');
+  document.getElementById('detailView').classList.add('active');
+  renderDetail();
+  window.scrollTo(0, 0);
+}
+
+function renderDetail() {
+  const p = currentProduct;
+  const v = p.variants.find(vr => vr.colour === selectedColour);
+  const imgs = [v.image, ...p.images.filter(i => i !== v.image)];
+
+  document.getElementById('detailHero').innerHTML = `<img src="${imgs[0]}" alt="${p.name} — ${selectedColour}" />`;
+  document.getElementById('detailThumbs').innerHTML = imgs.length > 1 ? imgs.map((img, i) =>
+    `<div class="thumb${i === 0 ? ' active' : ''}" onclick="setThumb(this, '${img}')"><img src="${img}" alt="" loading="lazy" /></div>`
+  ).join('') : '';
+
+  viewerImages = imgs;
+  viewerIndex = 0;
+
+  const totalQty = Object.values(quantities).reduce((a, b) => a + b, 0);
+  const totalPrice = totalQty * p.price;
+
+  document.getElementById('detailInfo').innerHTML = `
+    <div>
+      <div class="detail-brand">${p.brand}</div>
+      <h1 class="detail-name">${p.name}</h1>
+      <div class="detail-price">${fmt(p.price)}</div>
+      <div class="colour-label">Colour: <span>${selectedColour}</span></div>
+      <div class="swatches">
+        ${p.variants.map(vr => `<div class="swatch${vr.colour === selectedColour ? ' active' : ''}" style="background:${vr.hex}" title="${vr.colour}" onclick="pickColour('${vr.colour}')"></div>`).join('')}
+      </div>
+      <div class="sizes-label">Select sizes &amp; quantities</div>
+      ${Object.entries(v.sizes).map(([size, stock]) => `
+        <div class="size-row">
+          <span class="size-name">${size}</span>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="adjQty('${size}', -1, ${stock})" ${!(quantities[size] > 0) ? 'disabled' : ''}>-</button>
+            <input class="qty-val" type="number" min="0" max="${stock}" value="${quantities[size] || ''}" placeholder="0" ${stock === 0 ? 'disabled' : ''} onchange="setQty('${size}', this.value, ${stock})" />
+            <button class="qty-btn" onclick="adjQty('${size}', 1, ${stock})" ${stock === 0 || (quantities[size] || 0) >= stock ? 'disabled' : ''}>+</button>
+          </div>
+          <span class="size-stock">${stock > 0 ? stock + ' available' : 'Out of stock'}</span>
+        </div>
+      `).join('')}
+      <button class="add-btn" ${totalQty === 0 ? 'disabled' : ''} onclick="addToBag()">
+        ${totalQty > 0 ? 'Add to Bag — ' + totalQty + ' item' + (totalQty !== 1 ? 's' : '') + ' · ' + fmt(totalPrice) : 'Select sizes to add'}
+      </button>
+    </div>
+  `;
+}
+
+function pickColour(c) { selectedColour = c; quantities = {}; renderDetail(); }
+function setThumb(el, src) {
+  document.getElementById('detailHero').querySelector('img').src = src;
+  el.parentElement.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+function adjQty(size, delta, max) {
+  const cur = quantities[size] || 0;
+  const next = Math.max(0, Math.min(max, cur + delta));
+  quantities[size] = next;
+  renderDetail();
+}
+function setQty(size, val, max) {
+  quantities[size] = Math.max(0, Math.min(max, parseInt(val) || 0));
+  renderDetail();
+}
+
+function addToBag() {
+  const p = currentProduct;
+  Object.entries(quantities).forEach(([size, qty]) => {
+    if (qty <= 0) return;
+    const key = p.id + '-' + selectedColour + '-' + size;
+    const existing = bag.find(i => i.id === key);
+    if (existing) { existing.qty += qty; }
+    else {
+      const v = p.variants.find(vr => vr.colour === selectedColour);
+      bag.push({ id: key, productId: p.id, name: p.name, brand: p.brand, image: v.image, colour: selectedColour, size, qty, unitPrice: p.price });
+    }
+  });
+  quantities = {};
+  updateBadge();
+  renderDetail();
+  showToast('Added to bag');
+}
+
+// Bag
+function showBag() {
+  document.getElementById('catalogueView').style.display = 'none';
+  document.getElementById('catBar').style.display = 'none';
+  document.getElementById('detailView').classList.remove('active');
+  document.getElementById('bagView').classList.add('active');
+  renderBag();
+  window.scrollTo(0, 0);
+}
+
+function renderBag() {
+  const el = document.getElementById('bagView');
+  if (bag.length === 0) {
+    el.innerHTML = `<div class="bag-empty">
+      <div class="bag-empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
+      <h2>Your bag is empty</h2>
+      <p>Browse our collection and add items to get started</p>
+      <button class="bag-empty-btn" onclick="showCatalogue()">Browse Collection</button>
+    </div>`;
+    return;
+  }
+  const count = bag.reduce((s, i) => s + i.qty, 0);
+  const total = bag.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  el.innerHTML = `
+    <div class="bag-header">
+      <h1 class="bag-title">Bag (${count})</h1>
+      <button class="bag-continue" onclick="showCatalogue()">Continue Shopping</button>
+    </div>
+    ${bag.map(item => `
+      <div class="bag-item">
+        <img class="bag-item-img" src="${item.image}" alt="${item.name}" loading="lazy" />
+        <div class="bag-item-info">
+          <div class="bag-item-name">${item.name}</div>
+          <div class="bag-item-meta">${item.brand} · ${item.colour} · ${item.size}</div>
+          <div class="bag-item-price">${fmt(item.unitPrice)}</div>
+          <div class="bag-item-actions">
+            <div class="qty-control">
+              <button class="qty-btn" onclick="bagAdjQty('${item.id}', -1)">-</button>
+              <span class="qty-val" style="display:flex;align-items:center;justify-content:center">${item.qty}</span>
+              <button class="qty-btn" onclick="bagAdjQty('${item.id}', 1)">+</button>
+            </div>
+            <button class="bag-remove" onclick="bagRemove('${item.id}')">Remove</button>
+          </div>
+        </div>
+        <div class="bag-item-total">${fmt(item.unitPrice * item.qty)}</div>
+      </div>
+    `).join('')}
+    <div class="bag-footer">
+      <div class="bag-total-row">
+        <span class="bag-total-label">Total (${count} items)</span>
+        <span class="bag-total-val">${fmt(total)}</span>
+      </div>
+      <button class="send-btn" onclick="sendOrder()">Send Order</button>
+    </div>
+  `;
+}
+
+function bagAdjQty(id, delta) {
+  const item = bag.find(i => i.id === id);
+  if (!item) return;
+  item.qty += delta;
+  if (item.qty <= 0) bag = bag.filter(i => i.id !== id);
+  updateBadge();
+  renderBag();
+}
+function bagRemove(id) { bag = bag.filter(i => i.id !== id); updateBadge(); renderBag(); }
+function sendOrder() {
+  bag = [];
+  updateBadge();
+  document.getElementById('bagView').innerHTML = `<div class="bag-empty">
+    <div class="bag-empty-icon" style="font-size:1.5rem">✓</div>
+    <h2>Order Sent</h2>
+    <p>Your order has been submitted successfully. We'll be in touch shortly.</p>
+    <button class="bag-empty-btn" onclick="showCatalogue()">Continue Shopping</button>
+  </div>`;
+}
+
+// Navigation
+function showCatalogue() {
+  document.getElementById('catalogueView').style.display = '';
+  document.getElementById('catBar').style.display = '';
+  document.getElementById('detailView').classList.remove('active');
+  document.getElementById('bagView').classList.remove('active');
+  window.scrollTo(0, 0);
+}
+
+// Badge
+function updateBadge() {
+  const count = bag.reduce((s, i) => s + i.qty, 0);
+  const badge = document.getElementById('bagBadge');
+  if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
+  else { badge.classList.add('hidden'); }
+}
+
+// Toast
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// Viewer
+function openViewer() {
+  document.getElementById('viewer').classList.add('active');
+  document.getElementById('viewerImg').src = viewerImages[viewerIndex];
+  document.getElementById('viewerCounter').textContent = (viewerIndex + 1) + ' / ' + viewerImages.length;
+  document.body.style.overflow = 'hidden';
+}
+function closeViewer() {
+  document.getElementById('viewer').classList.remove('active');
+  document.body.style.overflow = '';
+}
+function viewerPrev() {
+  viewerIndex = viewerIndex > 0 ? viewerIndex - 1 : viewerImages.length - 1;
+  document.getElementById('viewerImg').src = viewerImages[viewerIndex];
+  document.getElementById('viewerCounter').textContent = (viewerIndex + 1) + ' / ' + viewerImages.length;
+}
+function viewerNext() {
+  viewerIndex = viewerIndex < viewerImages.length - 1 ? viewerIndex + 1 : 0;
+  document.getElementById('viewerImg').src = viewerImages[viewerIndex];
+  document.getElementById('viewerCounter').textContent = (viewerIndex + 1) + ' / ' + viewerImages.length;
+}
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('viewer').classList.contains('active')) return;
+  if (e.key === 'Escape') closeViewer();
+  if (e.key === 'ArrowLeft') viewerPrev();
+  if (e.key === 'ArrowRight') viewerNext();
+});
+
+// Init
+renderCats();
+renderGrid();
+</script>
