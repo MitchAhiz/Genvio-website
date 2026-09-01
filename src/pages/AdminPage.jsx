@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { formatPrice } from '../api/products'
 
-const API = 'http://localhost:4000'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
 function api(path, options = {}) {
   return fetch(`${API}${path}`, { credentials: 'include', ...options })

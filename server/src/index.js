@@ -9,8 +9,15 @@ const authRoutes = require('./routes/auth')
 const app = express()
 const PORT = process.env.PORT || 4000
 
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'https://genvio-website.vercel.app',
+]
+if (process.env.CORS_ORIGIN) ALLOWED_ORIGINS.push(process.env.CORS_ORIGIN)
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  origin: ALLOWED_ORIGINS,
   credentials: true,
 }))
 app.use(express.json())
