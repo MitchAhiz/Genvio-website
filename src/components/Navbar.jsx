@@ -12,7 +12,7 @@ export default function Navbar() {
       <nav className="sticky top-0 z-40 bg-cream/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 h-12 sm:h-14 flex items-center justify-between">
           <Link to="/" className="font-display text-xl font-semibold tracking-wide text-charcoal">
-            MARY
+            Genvio Exotic Apparel
           </Link>
 
           <div className="flex items-center gap-4">

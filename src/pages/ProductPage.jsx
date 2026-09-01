@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getProductBySlug, formatPrice } from '../api/products'
 import { useBag } from '../hooks/useBag'
 import ImageViewer from '../components/ImageViewer'
@@ -7,15 +7,33 @@ import ImageViewer from '../components/ImageViewer'
 export default function ProductPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
-  const product = getProductBySlug(slug)
   const { addItem } = useBag()
 
-  const [selectedColour, setSelectedColour] = useState(product?.variants[0]?.colour)
+  const [product, setProduct] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [selectedColour, setSelectedColour] = useState(null)
   const [quantities, setQuantities] = useState({})
   const [currentImg, setCurrentImg] = useState(0)
   const [viewerOpen, setViewerOpen] = useState(false)
 
-  if (!product) {
+  useEffect(() => {
+    setLoading(true)
+    setError(false)
+    getProductBySlug(slug)
+      .then((p) => {
+        setProduct(p)
+        setSelectedColour(p?.variants[0]?.colour ?? null)
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }, [slug])
+
+  if (loading) {
+    return <p className="max-w-7xl mx-auto px-4 py-20 text-center text-sm text-muted">Loading...</p>
+  }
+
+  if (error || !product) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
         <p className="text-muted">Product not found</p>

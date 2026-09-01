@@ -1,26 +1,49 @@
-import products from '../data/products'
+const API_BASE = 'http://localhost:4000'
 
-export function getProducts() {
-  return products
+function transformProduct(p) {
+  return {
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    brand: p.brand,
+    category: p.category,
+    price: p.price,
+    isNew: Date.now() - new Date(p.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
+    images: p.images.map((img) => img.url),
+    variants: p.variants.map((v) => ({
+      colour: v.colour,
+      hex: v.hex || '#888888',
+      image: v.imageUrl || (p.images[0]?.url ?? ''),
+      sizes: Object.fromEntries(v.sizes.map((s) => [s.size, s.quantity])),
+    })),
+  }
 }
 
-export function getProductBySlug(slug) {
-  return products.find((p) => p.slug === slug) || null
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
+    ...options,
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`)
+  return res.json()
 }
 
-export function getCategories() {
-  const cats = [...new Set(products.map((p) => p.category))]
-  return cats
+export async function getProducts() {
+  const data = await apiFetch('/api/products')
+  return data.map(transformProduct)
 }
 
-export function getInventory(productId) {
-  const product = products.find((p) => p.id === productId)
-  if (!product) return null
-  return product.variants.map((v) => ({
-    colour: v.colour,
-    sizes: v.sizes,
-    totalStock: Object.values(v.sizes).reduce((a, b) => a + b, 0),
-  }))
+export async function getProductBySlug(slug) {
+  const data = await apiFetch(`/api/products/${encodeURIComponent(slug)}`)
+  return transformProduct(data)
+}
+
+export async function getCategories() {
+  return apiFetch('/api/categories')
+}
+
+export async function getInventory(productId) {
+  return apiFetch(`/api/inventory/${encodeURIComponent(productId)}`)
 }
 
 export function getSizeRange(variants) {

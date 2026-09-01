@@ -4,6 +4,7 @@ import { getProducts, formatPrice } from '../api/products'
 
 export default function SearchOverlay({ onClose }) {
   const [query, setQuery] = useState('')
+  const [products, setProducts] = useState([])
   const inputRef = useRef(null)
   const navigate = useNavigate()
 
@@ -14,7 +15,12 @@ export default function SearchOverlay({ onClose }) {
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
 
-  const products = getProducts()
+  useEffect(() => {
+    getProducts()
+      .then(setProducts)
+      .catch((err) => console.error('Failed to load products for search:', err))
+  }, [])
+
   const q = query.toLowerCase().trim()
   const results = q
     ? products.filter(

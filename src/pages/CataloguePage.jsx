@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { getProducts, getCategories } from '../api/products'
 import CategoryPills from '../components/CategoryPills'
 import ProductCard from '../components/ProductCard'
@@ -7,8 +7,19 @@ import SortSelect from '../components/SortSelect'
 export default function CataloguePage() {
   const [activeCategory, setActiveCategory] = useState(null)
   const [sort, setSort] = useState('newest')
-  const products = getProducts()
-  const categories = getCategories()
+  const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([getProducts(), getCategories()])
+      .then(([prods, cats]) => {
+        setProducts(prods)
+        setCategories(cats)
+      })
+      .catch((err) => console.error('Failed to load catalogue:', err))
+      .finally(() => setLoading(false))
+  }, [])
 
   const filtered = useMemo(() => {
     let list = activeCategory
@@ -49,14 +60,20 @@ export default function CataloguePage() {
         </div>
       </div>
 
-      <div className="px-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-6 sm:gap-x-4 sm:gap-y-8">
-        {filtered.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </div>
+      {loading ? (
+        <p className="text-center text-muted py-20 text-sm">Loading...</p>
+      ) : (
+        <>
+          <div className="px-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-6 sm:gap-x-4 sm:gap-y-8">
+            {filtered.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
 
-      {filtered.length === 0 && (
-        <p className="text-center text-muted py-20 text-sm">No products in this category</p>
+          {filtered.length === 0 && (
+            <p className="text-center text-muted py-20 text-sm">No products in this category</p>
+          )}
+        </>
       )}
     </div>
   )
