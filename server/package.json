@@ -7,10 +7,12 @@
     "start": "node src/index.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "db:apply": "node scripts/apply-migrations.js"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
+    "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

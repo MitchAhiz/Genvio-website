@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { formatPrice } from '../api/products'
+import { SECTIONS } from '../sections'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
@@ -93,6 +94,7 @@ function ProductEditModal({ product, onSave, onClose }) {
   const [brand, setBrand] = useState(product.brand)
   const [category, setCategory] = useState(product.category)
   const [price, setPrice] = useState(product.price)
+  const [section, setSection] = useState(product.section || 'women')
   const [variants, setVariants] = useState(product.variants.map(v => ({ ...v, sizes: v.sizes.map(s => ({ ...s })) })))
   const [images, setImages] = useState([...product.images])
   const [newImageUrl, setNewImageUrl] = useState('')
@@ -103,7 +105,7 @@ function ProductEditModal({ product, onSave, onClose }) {
     setSaving(true)
     setError('')
     try {
-      const res = await jsonPatch(`/api/products/${product.id}`, { name, brand, category, price: Number(price) })
+      const res = await jsonPatch(`/api/products/${product.id}`, { name, brand, category, section, price: Number(price) })
       if (!res.ok) { setError((await res.json()).error); return null }
       return await res.json()
     } catch { setError('Network error'); return null }
@@ -206,6 +208,12 @@ function ProductEditModal({ product, onSave, onClose }) {
               <label style={S.label}>Price (₦)</label>
               <input type="number" value={price} onChange={e => setPrice(e.target.value)} style={S.input} />
             </div>
+            <div>
+              <label style={S.label}>Section</label>
+              <select value={section} onChange={e => setSection(e.target.value)} style={{ ...S.input, background: '#fff' }}>
+                {SECTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+              </select>
+            </div>
           </div>
           <div style={{ marginTop: '0.75rem' }}>
             <button onClick={saveAll} disabled={saving} style={S.btnPrimary}>{saving ? 'Saving...' : 'Save Basic Info'}</button>
@@ -298,6 +306,7 @@ function ProductRow({ product, onUpdate, onDelete, onEdit }) {
       <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#2C2420' }}>{product.name}</td>
       <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.875rem', color: '#5C4A3E' }}>{formatPrice(product.price)}</td>
       <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8125rem', color: '#8A7B72' }}>{product.category}</td>
+      <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8125rem', color: '#5C4A3E', textTransform: 'capitalize' }}>{product.section || 'women'}</td>
       <td style={{ padding: '0.75rem 0.5rem' }}>
         <span style={{ ...statusColor, padding: '0.2rem 0.5rem', borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500 }}>{product.status}</span>
       </td>
@@ -312,9 +321,237 @@ function ProductRow({ product, onUpdate, onDelete, onEdit }) {
   )
 }
 
+// ── Wholesale lookbook ──
+
+function WholesalePanel() {
+  const [images, setImages] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [url, setUrl] = useState('')
+  const [caption, setCaption] = useState('')
+  const [category, setCategory] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const load = async () => {
+    try {
+      const res = await api('/api/wholesale')
+      if (res.ok) setImages(await res.json())
+    } catch (err) { console.error('Failed to load lookbook:', err) }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const addImage = async (e) => {
+    e.preventDefault()
+    if (!url.trim()) return
+    setSaving(true)
+    setError('')
+    try {
+      const res = await jsonPost('/api/wholesale', { url: url.trim(), caption, category })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Failed to add image'); return }
+      setImages(prev => [...prev, data])
+      setUrl(''); setCaption(''); setCategory('')
+    } catch { setError('Network error') }
+    finally { setSaving(false) }
+  }
+
+  const removeImage = async (id) => {
+    if (!confirm('Remove this image from the lookbook?')) return
+    const res = await api(`/api/wholesale/${id}`, { method: 'DELETE' })
+    if (!res.ok) { alert((await res.json()).error || 'Failed to remove'); return }
+    setImages(prev => prev.filter(i => i.id !== id))
+  }
+
+  const categories = [...new Set(images.map(i => i.category).filter(Boolean))]
+
+  return (
+    <div>
+      <form onSubmit={addImage} style={S.section}>
+        <h3 style={S.sectionTitle}>Add lookbook image</h3>
+        {error && <div style={{ padding: '0.5rem 0.75rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, fontSize: '0.8125rem', color: '#991B1B', marginBottom: '0.75rem' }}>{error}</div>}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
+          <div>
+            <label style={S.label}>Image URL</label>
+            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." required style={S.input} />
+          </div>
+          <div>
+            <label style={S.label}>Caption (optional)</label>
+            <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="e.g. Satin set, 3 colours" style={S.input} />
+          </div>
+          <div>
+            <label style={S.label}>Category (optional)</label>
+            <input list="wholesale-categories" value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Dresses" style={S.input} />
+            <datalist id="wholesale-categories">
+              {categories.map(c => <option key={c} value={c} />)}
+            </datalist>
+          </div>
+          <button type="submit" disabled={saving || !url.trim()} style={{ ...S.btnPrimary, padding: '0.5rem 0.875rem', opacity: saving ? 0.6 : 1 }}>{saving ? 'Adding...' : 'Add'}</button>
+        </div>
+      </form>
+
+      {loading ? (
+        <p style={{ color: '#8A7B72', fontSize: '0.875rem' }}>Loading lookbook...</p>
+      ) : images.length === 0 ? (
+        <p style={{ color: '#8A7B72', fontSize: '0.875rem' }}>No lookbook images yet. Add one above — it appears on /wholesale immediately.</p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
+          {images.map(img => (
+            <div key={img.id} style={{ background: '#fff', border: '1px solid #E8E2DB', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ aspectRatio: '4 / 5', background: '#F5F0EB' }}>
+                <img src={img.url} alt={img.caption || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display = 'none' }} />
+              </div>
+              <div style={{ padding: '0.5rem' }}>
+                <p style={{ margin: 0, fontSize: '0.8125rem', color: '#2C2420', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {img.caption || <span style={{ color: '#8A7B72' }}>No caption</span>}
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.375rem' }}>
+                  <span style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A7B72' }}>{img.category || '—'}</span>
+                  <button onClick={() => removeImage(img.id)} style={S.btnDanger}>Remove</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Orders ──
+
+const ORDER_STATUSES = ['pending_payment', 'confirmed', 'processing', 'shipped', 'delivered']
+const STATUS_LABEL = { pending_payment: 'Pending payment', confirmed: 'Confirmed', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered' }
+const STATUS_STYLE = {
+  pending_payment: { background: '#FEF3C7', color: '#92400E' },
+  confirmed: { background: '#DBEAFE', color: '#1E40AF' },
+  processing: { background: '#EDE9FE', color: '#5B21B6' },
+  shipped: { background: '#E0F2FE', color: '#075985' },
+  delivered: { background: '#DEF7EC', color: '#03543F' },
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function OrdersPanel() {
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [expanded, setExpanded] = useState(null)
+  const [saving, setSaving] = useState(null)
+
+  useEffect(() => {
+    api('/api/orders')
+      .then(async (res) => {
+        if (res.ok) { setOrders(await res.json()); return }
+        const data = await res.json().catch(() => ({}))
+        setLoadError(data.error || `Couldn’t load orders (${res.status})`)
+      })
+      .catch(() => setLoadError('Couldn’t reach the server. Is the backend running?'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const setStatus = async (order, status) => {
+    setSaving(order.id)
+    try {
+      const res = await jsonPatch(`/api/orders/${order.id}`, { status })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error || 'Failed to update status'); return }
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? data : o)))
+    } catch { alert('Network error') }
+    finally { setSaving(null) }
+  }
+
+  if (loading) return <p style={{ color: '#8A7B72', fontSize: '0.875rem' }}>Loading orders...</p>
+  if (loadError) return <div style={{ padding: '0.625rem 0.75rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, fontSize: '0.8125rem', color: '#991B1B' }}>{loadError}</div>
+  if (orders.length === 0) return <p style={{ color: '#8A7B72', fontSize: '0.875rem' }}>No orders yet. They appear here as soon as a customer taps “I’ve paid”.</p>
+
+  const cell = { padding: '0.75rem 0.5rem', fontSize: '0.8125rem', color: '#5C4A3E', verticalAlign: 'top' }
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #E8E2DB' }}>
+        <thead>
+          <tr style={{ background: '#F5F0EB', borderBottom: '1px solid #E8E2DB' }}>
+            {['Reference', 'Customer', 'Total', 'Status', 'Placed', ''].map((h) => (
+              <th key={h} style={{ padding: '0.625rem 0.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: '#8A7B72', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((order) => {
+            const open = expanded === order.id
+            const itemCount = order.items.reduce((n, i) => n + i.qty, 0)
+            return (
+              <Fragment key={order.id}>
+                <tr style={{ borderBottom: open ? 'none' : '1px solid #E8E2DB', cursor: 'pointer' }} onClick={() => setExpanded(open ? null : order.id)}>
+                  <td style={{ ...cell, fontSize: '0.8125rem', fontWeight: 500, letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums', color: '#2C2420', whiteSpace: 'nowrap' }}>{order.reference}</td>
+                  <td style={cell}>
+                    <div style={{ fontWeight: 500, color: '#2C2420' }}>{order.customer.name}</div>
+                    <div style={{ color: '#8A7B72' }}>{order.customer.phone}</div>
+                  </td>
+                  <td style={{ ...cell, whiteSpace: 'nowrap', color: '#2C2420', fontWeight: 500 }}>{formatPrice(order.total)}<span style={{ color: '#8A7B72', fontWeight: 400 }}> · {itemCount}</span></td>
+                  <td style={cell} onClick={(e) => e.stopPropagation()}>
+                    <select
+                      value={order.status}
+                      disabled={saving === order.id}
+                      onChange={(e) => setStatus(order, e.target.value)}
+                      style={{ ...STATUS_STYLE[order.status], border: 'none', borderRadius: 9999, padding: '0.25rem 0.625rem', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif' }}
+                    >
+                      {ORDER_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ ...cell, whiteSpace: 'nowrap', color: '#8A7B72' }}>{formatDate(order.createdAt)}</td>
+                  <td style={{ ...cell, color: '#8A7B72', fontSize: '0.75rem' }}>{open ? 'Hide' : 'Details'}</td>
+                </tr>
+                {open && (
+                  <tr style={{ borderBottom: '1px solid #E8E2DB', background: '#FDFCFA' }}>
+                    <td colSpan={6} style={{ padding: '0.5rem 0.75rem 1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+                        <div>
+                          <p style={{ ...S.label, marginBottom: '0.5rem' }}>Items</p>
+                          {order.items.map((item, i) => (
+                            <div key={i} style={{ display: 'flex', gap: '0.625rem', alignItems: 'center', padding: '0.375rem 0', borderTop: i ? '1px solid #F0EAE3' : 'none', fontSize: '0.8125rem' }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ color: '#2C2420', fontWeight: 500 }}>{item.name}</div>
+                                <div style={{ color: '#8A7B72', fontSize: '0.75rem' }}>{[item.colour, item.size].filter(Boolean).join(' · ')}</div>
+                              </div>
+                              <div style={{ color: '#5C4A3E', whiteSpace: 'nowrap' }}>{item.qty} × {formatPrice(item.unitPrice)}</div>
+                              <div style={{ color: '#2C2420', fontWeight: 500, whiteSpace: 'nowrap', minWidth: 80, textAlign: 'right' }}>{formatPrice(item.qty * item.unitPrice)}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div>
+                          <p style={{ ...S.label, marginBottom: '0.5rem' }}>Deliver to</p>
+                          <div style={{ fontSize: '0.8125rem', color: '#2C2420', lineHeight: 1.5 }}>
+                            <div style={{ fontWeight: 500 }}>{order.customer.name}</div>
+                            <div>{order.address?.street}</div>
+                            <div>{order.address?.city}, {order.address?.state}</div>
+                            <div style={{ color: '#5C4A3E', marginTop: '0.25rem' }}>{order.customer.phone}</div>
+                          </div>
+                          <p style={{ ...S.label, margin: '0.875rem 0 0.25rem' }}>Payment</p>
+                          <div style={{ fontSize: '0.8125rem', color: '#5C4A3E' }}>Bank transfer · {formatPrice(order.total)}</div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 // ── Dashboard ──
 
 function Dashboard({ onLogout }) {
+  const [tab, setTab] = useState('products')
+  const [sectionFilter, setSectionFilter] = useState('all')
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)
@@ -343,35 +580,77 @@ function Dashboard({ onLogout }) {
     onLogout()
   }
 
+  const sectionOf = (p) => p.section || 'women'
+  const visible = sectionFilter === 'all' ? products : products.filter(p => sectionOf(p) === sectionFilter)
+  const counts = {
+    all: products.length,
+    ...Object.fromEntries(SECTIONS.map(s => [s.key, products.filter(p => sectionOf(p) === s.key).length])),
+  }
+
+  const tabStyle = (active) => ({
+    padding: '0.5rem 0.875rem', fontSize: '0.875rem', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer',
+    fontFamily: 'Inter, system-ui, sans-serif', color: active ? '#2C2420' : '#8A7B72',
+    borderBottom: active ? '2px solid #2C2420' : '2px solid transparent', marginBottom: -1,
+  })
+  const pillStyle = (active) => ({
+    padding: '0.3rem 0.75rem', borderRadius: 9999, fontSize: '0.8125rem', fontWeight: 500, cursor: 'pointer',
+    fontFamily: 'Inter, system-ui, sans-serif', border: '1px solid #E8E2DB',
+    background: active ? '#2C2420' : '#fff', color: active ? '#FAF7F2' : '#5C4A3E',
+  })
+
   return (
     <div style={{ minHeight: '100vh', background: '#FAF7F2' }}>
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '1.5rem 1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
           <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.5rem', fontWeight: 600, color: '#2C2420', margin: 0 }}>Genvio Exotic Apparel Admin</h1>
           <button onClick={handleLogout} style={{ ...S.btnSecondary, fontFamily: 'Inter, system-ui, sans-serif' }}>Sign Out</button>
         </div>
 
-        {loading ? (
-          <p style={{ color: '#8A7B72', fontSize: '0.875rem' }}>Loading products...</p>
-        ) : products.length === 0 ? (
-          <p style={{ color: '#8A7B72', fontSize: '0.875rem' }}>No products yet.</p>
+        <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '1px solid #E8E2DB', marginBottom: '1rem' }}>
+          <button onClick={() => setTab('orders')} style={tabStyle(tab === 'orders')}>Orders</button>
+          <button onClick={() => setTab('products')} style={tabStyle(tab === 'products')}>Products</button>
+          <button onClick={() => setTab('wholesale')} style={tabStyle(tab === 'wholesale')}>Wholesale</button>
+        </div>
+
+        {tab === 'orders' ? (
+          <OrdersPanel />
+        ) : tab === 'wholesale' ? (
+          <WholesalePanel />
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #E8E2DB' }}>
-              <thead>
-                <tr style={{ background: '#F5F0EB', borderBottom: '1px solid #E8E2DB' }}>
-                  {['Name', 'Price', 'Category', 'Status', 'Data', ''].map(h => (
-                    <th key={h} style={{ padding: '0.625rem 0.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: '#8A7B72', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {products.map(p => (
-                  <ProductRow key={p.id} product={p} onUpdate={handleUpdate} onDelete={handleDelete} onEdit={setEditing} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              {[{ key: 'all', label: 'All' }, ...SECTIONS].map(s => (
+                <button key={s.key} onClick={() => setSectionFilter(s.key)} style={pillStyle(sectionFilter === s.key)}>
+                  {s.label} <span style={{ opacity: 0.6 }}>{counts[s.key]}</span>
+                </button>
+              ))}
+            </div>
+
+            {loading ? (
+              <p style={{ color: '#8A7B72', fontSize: '0.875rem' }}>Loading products...</p>
+            ) : visible.length === 0 ? (
+              <p style={{ color: '#8A7B72', fontSize: '0.875rem' }}>
+                {products.length === 0 ? 'No products yet.' : 'No products in this section yet. Edit a product and change its Section to move it here.'}
+              </p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #E8E2DB' }}>
+                  <thead>
+                    <tr style={{ background: '#F5F0EB', borderBottom: '1px solid #E8E2DB' }}>
+                      {['Name', 'Price', 'Category', 'Section', 'Status', 'Data', ''].map(h => (
+                        <th key={h} style={{ padding: '0.625rem 0.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: '#8A7B72', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map(p => (
+                      <ProductRow key={p.id} product={p} onUpdate={handleUpdate} onDelete={handleDelete} onEdit={setEditing} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
 

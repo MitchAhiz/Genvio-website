@@ -2,50 +2,60 @@ import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { useBag } from '../hooks/useBag'
 import SearchOverlay from './SearchOverlay'
+import SectionSwitcher from './SectionSwitcher'
+import { SearchIcon, BagIcon } from './icons'
 
+// Retail header. Fixed heights (h-12 + h-10 on mobile, h-14 on sm+) so the
+// catalogue's sticky filter row can sit exactly beneath it.
 export default function Navbar() {
   const { itemCount } = useBag()
   const [searchOpen, setSearchOpen] = useState(false)
 
   return (
     <>
-      <nav className="sticky top-0 z-40 bg-cream/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 h-12 sm:h-14 flex items-center justify-between">
-          <Link to="/" className="font-display text-xl font-semibold tracking-wide text-charcoal">
-            Genvio Exotic Apparel
-          </Link>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSearchOpen(true)}
-              aria-label="Search"
-              className="p-2 text-brown hover:text-charcoal transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-            </button>
-
+      <header className="sticky top-0 z-40 bg-ground/90 backdrop-blur-sm border-b border-line transition-[background-color,border-color] duration-[400ms] ease-out-expo">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="h-12 sm:h-14 grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_1fr] items-center">
             <Link
-              to="/bag"
-              className="flex items-center gap-1.5 p-2 text-brown hover:text-charcoal transition-colors"
-              aria-label={`Shopping bag, ${itemCount} items`}
+              to="/"
+              className="font-display text-[17px] sm:text-xl font-semibold tracking-wide text-ink whitespace-nowrap justify-self-start"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                <path d="M3 6h18" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
-              {itemCount > 0 && (
-                <span className="text-xs font-medium bg-charcoal text-cream rounded-full w-5 h-5 flex items-center justify-center">
-                  {itemCount}
-                </span>
-              )}
+              Genvio Exotic Apparel
             </Link>
+
+            <div className="hidden sm:block">
+              <SectionSwitcher />
+            </div>
+
+            <div className="flex items-center gap-1 justify-self-end">
+              <button
+                onClick={() => setSearchOpen(true)}
+                aria-label="Search"
+                className="p-2 rounded-full text-ink-soft hover:text-ink hover:bg-surface transition-colors"
+              >
+                <SearchIcon />
+              </button>
+
+              <Link
+                to="/shop/bag"
+                className="relative flex items-center gap-1.5 p-2 rounded-full text-ink-soft hover:text-ink hover:bg-surface transition-colors"
+                aria-label={`Bag, ${itemCount} ${itemCount === 1 ? 'item' : 'items'}`}
+              >
+                <BagIcon />
+                {itemCount > 0 && (
+                  <span className="text-[11px] font-semibold tabular-nums bg-ink text-ground rounded-full min-w-5 h-5 px-1 flex items-center justify-center">
+                    {itemCount}
+                  </span>
+                )}
+              </Link>
+            </div>
+          </div>
+
+          <div className="sm:hidden h-10 flex items-start justify-center">
+            <SectionSwitcher />
           </div>
         </div>
-      </nav>
+      </header>
       {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
     </>
   )

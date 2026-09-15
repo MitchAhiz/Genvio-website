@@ -16,15 +16,29 @@ const {
 } = require('../services/products')
 
 const { requireAdminAuth } = require('../middleware/auth')
+const { validateSession } = require('../services/auth')
+const { SECTIONS, isValidSection } = require('../constants')
 
 const router = Router()
 
+function sectionError(res) {
+  return res.status(400).json({ error: `section must be one of: ${SECTIONS.join(', ')}` })
+}
+
 // --- Read endpoints ---
 
+// GET /api/products?section=women&category=Tops
+// `all=1` includes drafts, but only for a signed-in admin.
 router.get('/products', async (req, res, next) => {
   try {
-    const { category } = req.query
-    const products = await getProducts({ category })
+    const { category, section, all } = req.query
+    if (section && !isValidSection(section)) return sectionError(res)
+    const isAdmin = Boolean(validateSession(req.cookies?.admin_session))
+    const products = await getProducts({
+      category,
+      section,
+      includeDrafts: all === '1' && isAdmin,
+    })
     res.json(products)
   } catch (err) {
     next(err)
@@ -41,9 +55,11 @@ router.get('/products/:slug', async (req, res, next) => {
   }
 })
 
-router.get('/categories', async (_req, res, next) => {
+router.get('/categories', async (req, res, next) => {
   try {
-    const categories = await getCategories()
+    const { section } = req.query
+    if (section && !isValidSection(section)) return sectionError(res)
+    const categories = await getCategories({ section })
     res.json(categories)
   } catch (err) {
     next(err)
@@ -63,14 +79,15 @@ router.get('/inventory/:productId', async (req, res, next) => {
 
 router.post('/products', requireAdminAuth, async (req, res, next) => {
   try {
-    const { slug, name, brand, category, price } = req.body
+    const { slug, name, brand, category, price, section } = req.body
     if (!slug || !name || !brand || !category || price == null) {
       return res.status(400).json({ error: 'Missing required fields: slug, name, brand, category, price' })
     }
     if (typeof price !== 'number' || price <= 0) {
       return res.status(400).json({ error: 'Price must be a positive number' })
     }
-    const product = await createProduct({ slug, name, brand, category, price })
+    if (section !== undefined && !isValidSection(section)) return sectionError(res)
+    const product = await createProduct({ slug, name, brand, category, price, section })
     res.status(201).json(product)
   } catch (err) {
     next(err)
@@ -82,11 +99,12 @@ router.patch('/products/:id', requireAdminAuth, async (req, res, next) => {
     const existing = await getProductById(req.params.id)
     if (!existing) return res.status(404).json({ error: 'Product not found' })
 
-    const { name, brand, category, price, variants } = req.body
+    const { name, brand, category, price, section, variants } = req.body
     if (price !== undefined && (typeof price !== 'number' || price <= 0)) {
       return res.status(400).json({ error: 'Price must be a positive number' })
     }
-    const product = await updateProduct(req.params.id, { name, brand, category, price, variants })
+    if (section !== undefined && !isValidSection(section)) return sectionError(res)
+    const product = await updateProduct(req.params.id, { name, brand, category, price, section, variants })
     res.json(product)
   } catch (err) {
     next(err)

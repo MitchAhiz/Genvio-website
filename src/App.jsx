@@ -1,25 +1,62 @@
-import { Routes, Route } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Routes, Route, Navigate, Link, useParams } from 'react-router-dom'
 import { BagProvider } from './hooks/useBag'
-import Layout from './layouts/Layout'
+import { getProductBySlug } from './api/products'
+import { productPath, sectionPath, getLastSection } from './sections'
+import ShopLayout, { ShopIndexRedirect, SectionGuard } from './layouts/ShopLayout'
+import LandingPage from './pages/LandingPage'
 import CataloguePage from './pages/CataloguePage'
 import ProductPage from './pages/ProductPage'
 import BagPage from './pages/BagPage'
+import WholesalePage from './pages/WholesalePage'
 import AdminPage from './pages/AdminPage'
+
+// Old /product/:slug links (shared on WhatsApp before the restructure) resolve
+// to the product's own section.
+function LegacyProductRedirect() {
+  const { slug } = useParams()
+  const [target, setTarget] = useState(null)
+  useEffect(() => {
+    getProductBySlug(slug)
+      .then((p) => setTarget(productPath(p)))
+      .catch(() => setTarget(sectionPath(getLastSection())))
+  }, [slug])
+  return target ? <Navigate to={target} replace /> : null
+}
+
+function NotFound() {
+  return (
+    <div className="min-h-screen bg-ground text-ink flex flex-col items-center justify-center px-4 text-center">
+      <p className="font-display text-2xl">Page not found</p>
+      <Link to="/" className="mt-4 text-sm text-ink-soft underline underline-offset-4">
+        Back to the front door
+      </Link>
+    </div>
+  )
+}
 
 export default function App() {
   return (
     <BagProvider>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/wholesale" element={<WholesalePage />} />
         <Route path="/admin" element={<AdminPage />} />
-        <Route path="*" element={
-          <Layout>
-            <Routes>
-              <Route path="/" element={<CataloguePage />} />
-              <Route path="/product/:slug" element={<ProductPage />} />
-              <Route path="/bag" element={<BagPage />} />
-            </Routes>
-          </Layout>
-        } />
+
+        <Route path="/shop" element={<ShopLayout />}>
+          <Route index element={<ShopIndexRedirect />} />
+          <Route path="bag" element={<BagPage />} />
+          <Route path=":section" element={<SectionGuard />}>
+            <Route index element={<CataloguePage />} />
+            <Route path="product/:slug" element={<ProductPage />} />
+          </Route>
+        </Route>
+
+        {/* Legacy routes from the single-catalogue era */}
+        <Route path="/product/:slug" element={<LegacyProductRedirect />} />
+        <Route path="/bag" element={<Navigate to="/shop/bag" replace />} />
+
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BagProvider>
   )

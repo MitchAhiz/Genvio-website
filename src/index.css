@@ -1,28 +1,602 @@
 @import "tailwindcss";
 
+/*
+  One component system, several worlds.
+
+  Every component is styled through the semantic tokens below. A section theme
+  is a `data-theme` attribute on <html> (set by useTheme() in the owning route)
+  that redefines the same tokens, so `bg-ground`, `text-ink`, `border-line`…
+  recolour the whole UI at once.
+
+    ground      page background
+    elevated    cards, sheets, dialogs
+    surface     quiet fills, image placeholders
+    line        hairlines and borders
+    ink         primary text
+    ink-soft    secondary text, prices
+    muted       metadata (≥ 4.5:1 on ground: men 6.4, women 5.0, kids 5.2, wholesale 4.9)
+    accent      the section's signature colour: active pills, rules, rings
+    accent-soft the section's secondary colour: tints, hover fills
+    on-accent   text on a solid accent
+    cta         primary buttons (Add to Bag, Send Order)
+    cta-hover   their hover state
+    on-cta      text on a primary button
+
+  The default block is the Women's world (the incumbent identity).
+*/
 @theme {
   --font-display: 'Playfair Display', Georgia, serif;
   --font-body: 'Inter', system-ui, sans-serif;
 
-  --color-cream: #FAF7F2;
-  --color-warm-white: #FDFCFA;
-  --color-blush: #E8D5CC;
-  --color-dusty-rose: #C4A68E;
-  --color-charcoal: #2C2420;
-  --color-brown: #5C4A3E;
-  --color-muted: #8A7B72;
-  --color-border: #E8E2DB;
-  --color-surface: #F5F0EB;
+  --color-ground: #F8F1F2;
+  --color-elevated: #FFFFFF;
+  --color-surface: #F1E3E6;
+  --color-line: #E9D6DA;
+  --color-ink: #3B1F35;
+  --color-ink-soft: #6A4761;
+  --color-muted: #77596D;
+  --color-accent: #3B1F35;
+  --color-accent-soft: #D8A7B1;
+  --color-on-accent: #F8F1F2;
+  --color-cta: #3B1F35;
+  --color-cta-hover: #2A1526;
+  --color-on-cta: #F8F1F2;
+  --color-danger: #A33A4A;      /* validation only — never decorative */
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Men — charcoal + warm sand. Power, confidence, sophistication. ── */
+[data-theme="men"] {
+  color-scheme: dark;
+  --color-ground: #171717;
+  --color-elevated: #211F1C;
+  --color-surface: #2C2925;
+  --color-line: #413C34;
+  --color-ink: #F5F1E8;
+  --color-ink-soft: #D6C3A5;
+  --color-muted: #A69A88;
+  --color-accent: #D6C3A5;
+  --color-accent-soft: #4A4133;
+  --color-on-accent: #171717;
+  --color-cta: #D6C3A5;
+  --color-cta-hover: #E6D8BF;
+  --color-on-cta: #171717;
+  --color-danger: #E8A59C;
+}
+
+/* ── Women — deep plum + soft blush. Luxury, elegance, femininity. ── */
+[data-theme="women"] {
+  --color-ground: #F8F1F2;
+  --color-elevated: #FFFFFF;
+  --color-surface: #F1E3E6;
+  --color-line: #E9D6DA;
+  --color-ink: #3B1F35;
+  --color-ink-soft: #6A4761;
+  --color-muted: #77596D;
+  --color-accent: #3B1F35;
+  --color-accent-soft: #D8A7B1;
+  --color-on-accent: #F8F1F2;
+  --color-cta: #3B1F35;
+  --color-cta-hover: #2A1526;
+  --color-on-cta: #F8F1F2;
+  --color-danger: #A33A4A;
+}
+
+/* ── Kids — sage + warm cream, golden secondary. Playful, warm, youthful. ── */
+[data-theme="kids"] {
+  --color-ground: #FFF9ED;
+  --color-elevated: #FFFFFF;
+  --color-surface: #FBEFD2;
+  --color-line: #EFDFB6;
+  --color-ink: #2E3A2B;
+  --color-ink-soft: #55654F;
+  --color-muted: #5F6F58;
+  --color-accent: #6F8068;
+  --color-accent-soft: #F3D9A4;
+  --color-on-accent: #1C2619;
+  --color-cta: #5E6E57;
+  --color-cta-hover: #4E5D48;
+  --color-on-cta: #FFF9ED;
+  --color-danger: #B24E2E;
+}
+
+/* ── Wholesale — stone. A lookbook, nothing louder. ── */
+[data-theme="wholesale"] {
+  --color-ground: #F5F5F3;
+  --color-elevated: #FFFFFF;
+  --color-surface: #ECECE9;
+  --color-line: #DCDCD8;
+  --color-ink: #161616;
+  --color-ink-soft: #444442;
+  --color-muted: #6B6B64;
+  --color-accent: #161616;
+  --color-accent-soft: #E2E2DE;
+  --color-on-accent: #FFFFFF;
+  --color-cta: #161616;
+  --color-cta-hover: #2E2E2C;
+  --color-on-cta: #FFFFFF;
+  --color-danger: #B42318;
+}
+
+/* ── Gate — the landing. Charcoal and sand, so the photographs carry it. ── */
+[data-theme="gate"] {
+  color-scheme: dark;
+  --color-ground: #171717;
+  --color-elevated: #211F1C;
+  --color-surface: #2C2925;
+  --color-line: #413C34;
+  --color-ink: #F5F1E8;
+  --color-ink-soft: #D6C3A5;
+  --color-muted: #A69A88;
+  --color-accent: #D6C3A5;
+  --color-accent-soft: #4A4133;
+  --color-on-accent: #171717;
+  --color-cta: #D6C3A5;
+  --color-cta-hover: #E6D8BF;
+  --color-on-cta: #171717;
+  /* Mirrors Men: the light-theme red is unreadable on charcoal. */
+  --color-danger: #E8A59C;
+}
+
+/* ── Base ── */
+
+html {
+  color-scheme: light;
+  background-color: var(--color-ground);
 }
 
 body {
   font-family: var(--font-body);
-  color: var(--color-charcoal);
-  background-color: var(--color-cream);
+  color: var(--color-ink);
+  background-color: var(--color-ground);
   -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 400ms var(--ease-out-expo),
+    color 400ms var(--ease-out-expo);
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-blush) transparent;
+  scrollbar-color: var(--color-accent-soft) transparent;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+input[type="number"] {
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* ── Section switcher: tracked labels with a rule that grows under the active one ── */
+
+.section-tab {
+  position: relative;
+  padding: 0.5rem 0.125rem;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  transition: color 400ms var(--ease-out-expo);
+}
+@media (min-width: 640px) {
+  .section-tab {
+    font-size: 13px;
+  }
+}
+.section-tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.125rem;
+  height: 1.5px;
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 500ms var(--ease-out-expo);
+}
+.section-tab:hover {
+  color: var(--color-ink);
+}
+.section-tab.is-active {
+  color: var(--color-ink);
+}
+.section-tab.is-active::after {
+  transform: scaleX(1);
+}
+
+/* ── Checkout: underlined fields ── */
+
+.field {
+  display: block;
+}
+.field .field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--color-muted);
+  margin-bottom: 2px;
+  transition: color 300ms var(--ease-out-expo);
+}
+.field input,
+.field textarea,
+.field select {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
+  padding: 0.5rem 0;
+  color: var(--color-ink);
+  font: inherit;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 300ms var(--ease-out-expo);
+}
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
+}
+.field textarea {
+  resize: none;
+}
+.field select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 1.5rem;
+  cursor: pointer;
+}
+.field select::-ms-expand {
+  display: none;
+}
+/*
+  An unchosen select must read as empty, like a placeholder, not as a filled
+  value. Keyed to an attribute so it outranks `.field select`'s own colour.
+*/
+.field select[data-empty="true"] {
+  color: var(--color-muted);
+}
+.field:focus-within .field-label {
+  color: var(--color-ink-soft);
+}
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 0 var(--color-accent);
+  outline: none;
+}
+.field.is-invalid input,
+.field.is-invalid textarea,
+.field.is-invalid select {
+  border-bottom-color: var(--color-danger);
+}
+.field.is-invalid .field-label {
+  color: var(--color-danger);
+}
+
+/*
+  PIN unlock: the saved details arrive field by field, ~330ms end to end.
+  Quick enough to read as "loaded", not a slow dramatic cascade.
+*/
+@keyframes field-reveal {
+  from {
+    background-color: var(--color-accent-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.field.is-revealed input,
+.field.is-revealed textarea,
+.field.is-revealed select {
+  animation: field-reveal 180ms var(--ease-out-expo) backwards;
+  animation-delay: calc(var(--reveal-step, 0) * 50ms);
+}
+
+/* ── Checkout: PIN boxes ── */
+
+.pin-box {
+  width: 3rem;
+  height: 3.25rem;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--color-ink);
+  background: var(--color-elevated);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  outline: none;
+  caret-color: var(--color-accent);
+  transition:
+    border-color 200ms var(--ease-out-expo),
+    box-shadow 200ms var(--ease-out-expo);
+}
+.pin-box:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+.pin-box[data-filled="true"] {
+  border-color: var(--color-accent);
+}
+.pin-boxes.is-wrong .pin-box {
+  border-color: var(--color-danger);
+}
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+.pin-boxes.is-wrong {
+  animation: pin-shake 320ms var(--ease-out-expo);
+}
+
+/* ── Checkout: the save-details offer ── */
+
+@keyframes save-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.save-card {
+  animation: save-card-rise 450ms var(--ease-out-expo) 400ms backwards;
+}
+
+/* ── Checkout: sheet, step track, success ── */
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes sheet-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sheet-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+.checkout-scrim {
+  animation: scrim-in 400ms var(--ease-out-expo) both;
+}
+.checkout-scrim.is-closing {
+  animation: scrim-in 300ms ease-in reverse forwards;
+}
+.checkout-sheet {
+  animation: sheet-up 550ms var(--ease-out-expo) both;
+}
+.checkout-sheet.is-closing {
+  animation: sheet-down 320ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+@media (min-width: 640px) {
+  .checkout-sheet {
+    animation: sheet-in 450ms var(--ease-out-expo) both;
+  }
+  .checkout-sheet.is-closing {
+    animation: sheet-out 260ms ease-in forwards;
+  }
+}
+/* Drag-to-dismiss: the finger owns the sheet, then it springs or leaves. */
+.checkout-sheet.is-dragging {
+  animation: none;
+  transition: none;
+}
+.checkout-sheet.is-settling {
+  animation: none;
+  transition: transform 400ms var(--ease-out-expo);
+}
+.checkout-grip {
+  touch-action: none;
+  cursor: grab;
+}
+.checkout-grip:active {
+  cursor: grabbing;
+}
+/*
+  Deliberate height transition. The four cards differ in height, so without
+  this the sheet snaps between steps. It fires at most three times per
+  checkout on a single container, which keeps the layout cost bounded; the
+  alternatives (fixed height to the tallest card, or a hard snap) both read
+  worse. Everything else in the flow animates transform and opacity only.
+*/
+.checkout-body {
+  transition: height 450ms var(--ease-out-expo);
+}
+.checkout-track {
+  display: flex;
+  align-items: flex-start;
+  transition: transform 450ms var(--ease-out-expo);
+}
+.checkout-panel {
+  flex: 0 0 100%;
+  width: 100%;
+  transition: opacity 350ms var(--ease-out-expo);
+}
+.checkout-panel[aria-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.step-trail li {
+  position: relative;
+  padding-bottom: 0.375rem;
+}
+.step-trail li::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.5px;
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 500ms var(--ease-out-expo);
+}
+.step-trail li.is-current::after {
+  transform: scaleX(1);
+}
+
+@keyframes disc-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.success-disc {
+  animation: disc-in 500ms var(--ease-out-expo) both;
+}
+.success-disc path {
+  stroke-dasharray: 26;
+  stroke-dashoffset: 26;
+  animation: check-draw 600ms var(--ease-out-expo) 200ms forwards;
+}
+
+/* ── Landing gate ── */
+
+@keyframes gate-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes gate-settle {
+  from {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.gate-rise {
+  animation: gate-rise 900ms var(--ease-out-expo) backwards;
+}
+.gate-rise-2 {
+  animation-delay: 140ms;
+}
+.gate .door {
+  transition:
+    flex-grow 600ms var(--ease-out-expo),
+    opacity 600ms var(--ease-out-expo);
+}
+.gate .door img {
+  animation: gate-settle 1500ms var(--ease-out-expo) backwards;
+  animation-delay: 220ms;
+  transition: transform 1100ms var(--ease-out-expo);
+}
+.gate .door:nth-child(2) img {
+  animation-delay: 360ms;
+}
+.gate .door-content {
+  animation: gate-rise 900ms var(--ease-out-expo) backwards;
+  animation-delay: 520ms;
+}
+.gate .door:nth-child(2) .door-content {
+  animation-delay: 660ms;
+}
+.gate .door:hover img,
+.gate .door:focus-visible img {
+  transform: scale(1.04);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .gate .door:hover,
+  .gate .door:focus-visible {
+    flex-grow: 1.35;
+  }
+  .gate:hover .door:not(:hover):not(:focus-visible) {
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .gate .door:hover,
+  .gate .door:focus-visible {
+    flex-grow: 1;
+  }
 }

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+import { apiFetch, withQuery } from './client'
 
 function transformProduct(p) {
   return {
@@ -7,6 +7,7 @@ function transformProduct(p) {
     name: p.name,
     brand: p.brand,
     category: p.category,
+    section: p.section || 'women',
     price: p.price,
     isNew: Date.now() - new Date(p.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
     images: p.images.map((img) => img.url),
@@ -19,17 +20,9 @@ function transformProduct(p) {
   }
 }
 
-async function apiFetch(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    credentials: 'include',
-    ...options,
-  })
-  if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`)
-  return res.json()
-}
-
-export async function getProducts() {
-  const data = await apiFetch('/api/products')
+// getProducts({ section: 'women', category: 'Tops' }) — both optional.
+export async function getProducts({ section, category } = {}) {
+  const data = await apiFetch(withQuery('/api/products', { section, category }))
   return data.map(transformProduct)
 }
 
@@ -38,25 +31,35 @@ export async function getProductBySlug(slug) {
   return transformProduct(data)
 }
 
-export async function getCategories() {
-  return apiFetch('/api/categories')
+export async function getCategories({ section } = {}) {
+  return apiFetch(withQuery('/api/categories', { section }))
 }
 
 export async function getInventory(productId) {
   return apiFetch(`/api/inventory/${encodeURIComponent(productId)}`)
 }
 
+// Known adult sizes sort in this order; anything else (e.g. kids' "2-3Y",
+// "4-5Y") keeps the order it was entered in, which is how the admin lists it.
+const SIZE_ORDER = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']
+
 export function getSizeRange(variants) {
-  const allSizes = ['XS', 'S', 'M', 'L', 'XL']
-  const available = new Set()
+  const available = []
   for (const v of variants) {
     for (const [size, qty] of Object.entries(v.sizes)) {
-      if (qty > 0) available.add(size)
+      if (qty > 0 && !available.includes(size)) available.push(size)
     }
   }
-  const first = allSizes.find((s) => available.has(s))
-  const last = allSizes.findLast((s) => available.has(s))
-  return first && last ? `${first}–${last}` : ''
+  if (available.length === 0) return ''
+
+  const rank = (s) => {
+    const i = SIZE_ORDER.indexOf(String(s).toUpperCase())
+    return i === -1 ? SIZE_ORDER.length : i
+  }
+  const ordered = [...available].sort((a, b) => rank(a) - rank(b))
+  const first = ordered[0]
+  const last = ordered[ordered.length - 1]
+  return first === last ? first : `${first} – ${last}`
 }
 
 export function formatPrice(amount) {

@@ -9,9 +9,11 @@ const productWithRelations = {
 
 // --- Read ---
 
-async function getProducts({ category, status = 'published' } = {}) {
-  const where = { status }
+async function getProducts({ category, section, includeDrafts = false } = {}) {
+  const where = {}
+  if (!includeDrafts) where.status = 'published'
   if (category) where.category = category
+  if (section) where.section = section
 
   return prisma.product.findMany({
     where,
@@ -34,9 +36,11 @@ async function getProductById(id) {
   })
 }
 
-async function getCategories() {
+async function getCategories({ section } = {}) {
+  const where = { status: 'published' }
+  if (section) where.section = section
   const results = await prisma.product.findMany({
-    where: { status: 'published' },
+    where,
     select: { category: true },
     distinct: ['category'],
     orderBy: { category: 'asc' },
@@ -70,21 +74,22 @@ async function resolveUniqueSlug(baseSlug) {
   }
 }
 
-async function createProduct({ slug, name, brand, category, price }) {
+async function createProduct({ slug, name, brand, category, price, section = 'women' }) {
   const uniqueSlug = await resolveUniqueSlug(slug)
   return prisma.product.create({
-    data: { slug: uniqueSlug, name, brand, category, price, status: 'draft' },
+    data: { slug: uniqueSlug, name, brand, category, price, section, status: 'draft' },
     include: productWithRelations,
   })
 }
 
-async function updateProduct(id, { name, brand, category, price, variants }) {
+async function updateProduct(id, { name, brand, category, price, section, variants }) {
   return prisma.$transaction(async (tx) => {
     const updates = {}
     if (name !== undefined) updates.name = name
     if (brand !== undefined) updates.brand = brand
     if (category !== undefined) updates.category = category
     if (price !== undefined) updates.price = price
+    if (section !== undefined) updates.section = section
 
     if (Object.keys(updates).length > 0) {
       await tx.product.update({ where: { id }, data: updates })

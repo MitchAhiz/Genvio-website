@@ -5,9 +5,16 @@ const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const productRoutes = require('./routes/products')
 const authRoutes = require('./routes/auth')
+const wholesaleRoutes = require('./routes/wholesale')
+const customerRoutes = require('./routes/customers')
+const orderRoutes = require('./routes/orders')
+const configRoutes = require('./routes/config')
 
 const app = express()
 const PORT = process.env.PORT || 4000
+
+// Behind Render's proxy, so req.ip (used by the rate limiter) is the client's.
+app.set('trust proxy', 1)
 
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
@@ -20,11 +27,15 @@ app.use(cors({
   origin: ALLOWED_ORIGINS,
   credentials: true,
 }))
-app.use(express.json())
+app.use(express.json({ limit: '100kb' }))
 app.use(cookieParser())
 
 app.use('/api', authRoutes)
 app.use('/api', productRoutes)
+app.use('/api', wholesaleRoutes)
+app.use('/api', customerRoutes)
+app.use('/api', orderRoutes)
+app.use('/api', configRoutes)
 
 app.use((err, _req, res, _next) => {
   console.error(err.stack)

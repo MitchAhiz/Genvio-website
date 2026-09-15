@@ -1,0 +1,23 @@
+---
+version: 1
+slug: "src-components-checkout-checkoutoverlay-jsx"
+primary_target: "src/components/checkout/CheckoutOverlay.jsx"
+related_targets: []
+---
+
+# Checkout — overlay opened from /shop/bag
+
+Scope: a four-step order flow inside one overlay (bottom sheet on mobile, centred modal on desktop), plus an opt-in saved-details system unlocked by a 4-digit PIN. Mode: Operate — the visitor is completing a task on a phone, often on a slow connection.
+Audience: a boutique buyer or individual customer with a full bag; phone in hand; pays by bank transfer.
+Task: give a phone number → unlock saved details with a PIN or type them → see the total and the account to pay into → say "I've paid" → get a reference, and optionally save the details for next time.
+Constraints: no accounts, no card entry, no third-party payment UI. Bank details come from the server config. Themed by the active section's tokens. Kids and Men worlds must read as well as Women's.
+Privacy constraint (governs the whole surface): the lookup returns `{ exists, hasSavedDetails }` and nothing else. `verify-pin` is the single route that returns saved personal data, and only for the right PIN. Saving or declining requires the order reference as proof. No email is collected.
+
+## Direction contract
+THESIS: An order pad, not a checkout funnel — and the PIN is a shortcut offered, never a gate imposed. One sheet, four cards that slide sideways like pages of a receipt book; the phone number is the first and largest thing on the first card because it is the one fact the shop already knows the customer by. It refuses the stepper-with-numbered-circles, the progress bar, the card-form pastiche, and the login screen: at no point may a PIN stand between a customer and their order.
+OWN-WORLD: The section's own tokens (sheet on `elevated`, hairlines in `line`, primary action in `cta`); Playfair for the step title and for money and the reference; Inter for everything the customer types. Inputs are underlined fields — a single hairline that becomes the accent on focus — not boxed. The boxed surfaces are the deliberate exceptions, each on `ground` inside the sheet: the bank account card, the logistics note, the confirmation's delivery panel, the PIN offer, and the save offer. PIN digits are the one place a box is the right shape — four of them, `elevated` on `ground`, accent-bordered as they fill. No icons except the drawn check, copy and close. Money is Playfair; the naira sign alone is Inter, because Playfair Display ships no U+20A6, optically matched to the figures beside it.
+STORY: "They know my number, not my business — unless I hand them the key." Type the number → the shop either greets you or offers the PIN shortcut → your details arrive, or you type them → you pay by transfer → you get a reference, and a quiet offer to make next time faster.
+FIRST VIEWPORT: The sheet rises from the bottom (mobile) or fades and settles (desktop). Step title "Your details" in Playfair; a four-word step trail beneath (Details · Summary · Payment · Done); then the phone field at 30px with the tel keyboard and no placeholder standing in for a value. When the number has saved details, a PIN card appears **above** the form while the fields below stay visible, empty and typeable — skipping is one tap and costs nothing. Then the logistics note, then name and address, then a full-width `cta` "Continue".
+SIGNATURE: (1) Recognition — a number with nothing saved gets "Welcome back! 👋" and no more. A number with saved details gets four PIN boxes that advance themselves; the right PIN reveals the fields in a 330ms cascade (50ms apart, 180ms each) — fast enough to read as "loaded", not a slow reveal. A wrong PIN shakes the boxes once (320ms) and says so plainly, with skip still offered; the third wrong try steps aside entirely and hands over empty fields, never a permanent lock. (2) Copy — tapping the account number presses the card, the number takes the accent, the button reads "Copied" for two seconds. (3) Success — the check draws itself once (600ms) inside an accent disc; no confetti. (4) The offer — 400ms after the confirmation settles, a card rises with "Want faster checkout next time?"; "No thanks" is the same size as "Save my details" and is remembered, leaving only a quiet opt-in link on later orders. (5) Dismissal — on mobile the grab handle is a real gesture: the sheet follows the finger down and leaves on a third of its height or a flick.
+FORM: Receipt-book cards in one sheet — first on the ordered list; brief-pinned (overlay, four steps, horizontal slides), so no seed roll.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.

@@ -68,11 +68,25 @@ src/
 
 ## 4. Routes
 
+The site is a multi-section platform: a landing page with two doors, a retail
+**Shop** in three sections (Men / Women / Kids — own catalogue and colour theme
+each, one shared bag), and an image-only **Wholesale** lookbook.
+
 | Route | Purpose |
 |---|---|
-| `/` | Catalogue homepage |
-| `/product/:slug` | Product detail (real, shareable URL, e.g. `/product/satin-midi-dress`) |
-| `/bag` | Shopping bag |
+| `/` | Landing page — "Shop" and "Wholesale" entry points |
+| `/shop` | Redirects to the last visited section (Men by default) |
+| `/shop/:section` | Section catalogue (`men` \| `women` \| `kids`, in that order everywhere) |
+| `/shop/:section/product/:slug` | Product detail within a section (real, shareable URL) |
+| `/shop/bag` | Shared shopping bag across all sections |
+| `/wholesale` | Image-only lookbook for trade buyers — no cart, no product pages |
+| `/admin` | Internal admin (OTP login) |
+| `/product/:slug`, `/bag` | Legacy links — redirect into `/shop/…` |
+
+A persistent Men / Women / Kids switcher sits in the sticky retail header on
+every `/shop/*` route and never appears on the landing, wholesale, or admin pages.
+Themes are `data-theme` attributes on `<html>` driven by the route — see
+`DESIGN.md` for the token system and `src/index.css` for the palettes.
 
 Product detail should behave like a full-screen drawer/modal for smooth
 UX, but must still be a real, directly-navigable route (shareable via
@@ -92,6 +106,7 @@ colour/size combo as an independent product.
   slug: "satin-midi-dress",
   brand: "Zara",
   category: "Dresses",
+  section: "women",          // "women" | "men" | "kids"
   price: 32500,
   images: ["...", "...", "..."],
   variants: [
@@ -110,6 +125,11 @@ colour/size combo as an independent product.
 ```
 
 Understand data as: **Product → Colour → Size → Available Quantity.**
+
+Sizes are a free key→quantity map, so Kids products use age labels
+(`"2-3Y": 4, "4-5Y": 6`) with no schema change. Wholesale images are a separate
+table (`wholesale_images`: url, caption?, category?, sort order) with no link to
+products.
 
 ### Data access layer
 
@@ -159,9 +179,47 @@ rest lazy-load. Never eagerly load all images at once.
 ### Bag
 List of line items (product, colour, size, qty, unit price), quantity
 edit, remove, running total, item count in nav (`🛍 Bag (8)`), "Send
-Order" action. No checkout flow — order submission should be decoupled
-from any single channel (WhatsApp, email, API, CRM) so the target can
-change without rearchitecting the bag UI.
+Order" action. The bag persists to localStorage and is shared across all
+three retail sections.
+
+### Checkout
+"Send Order" opens a four-step overlay — bottom sheet on mobile, centred
+modal on desktop — not separate pages: **Details → Summary → Payment →
+Done**, sliding horizontally within one sheet.
+
+- Customers are identified by **phone number only**. No accounts, no
+  passwords, no sessions. `GET /api/customers/lookup` returns
+  `{ exists, hasSavedDetails }` and nothing else: no name, no address, no
+  history. A known number with nothing saved earns a "Welcome back! 👋"
+  greeting and nothing more.
+- **Saved details are opt-in and unlocked by a 4-digit PIN.** After an
+  order, a customer may save their name and address behind a PIN
+  (bcrypt, cost 10; the hash is never returned by any endpoint). On a
+  later order, entering that PIN fills the fields in.
+  `POST /api/customers/verify-pin` is the **only** route that returns
+  saved personal data, and only in exchange for the right PIN — 3 wrong
+  tries lock the auto-fill for that session (never permanently), and it
+  is rate-limited 10 per 10 minutes **per phone number**, not per caller.
+- Saving or declining requires the **order reference** as proof the
+  caller placed that order, so knowing a phone number alone can never set
+  or overwrite someone else's PIN.
+- Declining sets `save_opted_out`, and the prompt stops asking; a quiet
+  "Save details for next time" link remains for anyone who changes their
+  mind. Typing details by hand is always available and never penalised.
+- No email is collected at checkout — it isn't needed for delivery.
+- Payment is **bank transfer**. Account details come from `GET
+  /api/config/payment`, backed by the `BANK_NAME` /
+  `BANK_ACCOUNT_NUMBER` / `BANK_ACCOUNT_NAME` env vars — never hardcoded,
+  so the client can change them without a deploy.
+- Submitting creates an order with an auto-generated reference
+  (`GEA-YYYYMMDD-NNN`) and status `pending_payment`, and upserts the
+  customer record so the admin can group orders by customer. That record
+  is written, never read back to the frontend.
+- The confirmation step shows the **delivery details for logistics**
+  (name + address) with an Edit button, labelled so the customer knows
+  that is exactly what the courier will see.
+- Admin verifies payment and moves status along in the Orders tab:
+  pending_payment → confirmed → processing → shipped → delivered.
 
 ### Search & Filter & Sort
 - Search: name/brand/category, client-side if data is local — avoid a
@@ -189,8 +247,10 @@ and proper dialog semantics for modals/drawers, touch-friendly targets.
 
 Do not build unless separately requested:
 
-- Accounts / authentication
-- Payment gateway / checkout
+- Customer accounts / authentication (the checkout is phone-number
+  lookup only — deliberately no passwords, tokens or sessions)
+- Payment gateway / card processing (payment is bank transfer, verified
+  by hand in the admin Orders tab)
 - Coupons, reviews, wishlist, loyalty
 - Shipping engine
 - Customer dashboard

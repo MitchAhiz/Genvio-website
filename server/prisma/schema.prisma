@@ -14,13 +14,66 @@ model Product {
   brand     String
   category  String
   price     Int
+  section   String   @default("women")
   status    String   @default("draft")
   createdAt DateTime @default(now()) @map("created_at")
 
   images   ProductImage[]
   variants ProductVariant[]
 
+  @@index([section, status])
   @@map("products")
+}
+
+// Lightweight lookup keyed by phone number — not an account system.
+model Customer {
+  id      String  @id @default(cuid())
+  phone   String  @unique
+  name    String
+  email   String?
+  address Json
+
+  // Opt-in saved details. pinHash is a bcrypt hash of a 4-digit PIN and is
+  // never returned by any endpoint; it is only ever compared against.
+  pinHash      String?  @map("pin_hash")
+  detailsSaved Boolean  @default(false) @map("details_saved")
+  saveOptedOut Boolean  @default(false) @map("save_opted_out")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("customers")
+}
+
+model Order {
+  id            String   @id @default(cuid())
+  reference     String   @unique
+  customerId    String   @map("customer_id")
+  items         Json
+  address       Json
+  total         Int
+  status        String   @default("pending_payment")
+  paymentMethod String   @default("bank_transfer") @map("payment_method")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model WholesaleImage {
+  id        String   @id @default(cuid())
+  url       String
+  caption   String?
+  category  String?
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("wholesale_images")
 }
 
 model ProductImage {

@@ -1,9 +1,29 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 
 const BagContext = createContext()
+const STORAGE_KEY = 'genvio:bag'
+
+function loadBag() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
 
 export function BagProvider({ children }) {
-  const [items, setItems] = useState([])
+  // One bag across every section, kept through reloads.
+  const [items, setItems] = useState(loadBag)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    } catch {
+      // storage unavailable — the bag still works for this visit
+    }
+  }, [items])
 
   const addItem = useCallback(({ product, colour, size, qty }) => {
     setItems((prev) => {

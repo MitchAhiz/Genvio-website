@@ -1,0 +1,1348 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-11T00:00:00Z",
+  "title": "Design System: Genvio Exotic Apparel",
+  "extensions": {
+    "colorMeta": {
+      "men-ground": {
+        "role": "neutral",
+        "displayName": "Charcoal",
+        "canonical": "#171717",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#171717",
+          "#2A2A2A",
+          "#444444",
+          "#666666",
+          "#8C8C8C",
+          "#B5B5B5",
+          "#E6E6E6"
+        ]
+      },
+      "men-elevated": {
+        "role": "neutral",
+        "displayName": "Charcoal Card",
+        "canonical": "#211F1C",
+        "tonalRamp": [
+          "#100F0E",
+          "#211F1C",
+          "#32302B",
+          "#4A4640",
+          "#6B6659",
+          "#918B7D",
+          "#B8B3A5",
+          "#E6E3DB"
+        ]
+      },
+      "men-surface": {
+        "role": "neutral",
+        "displayName": "Charcoal Fill",
+        "canonical": "#2C2925",
+        "tonalRamp": [
+          "#141311",
+          "#2C2925",
+          "#3E3A33",
+          "#575149",
+          "#767063",
+          "#9A9384",
+          "#BFB9AA",
+          "#E8E4DC"
+        ]
+      },
+      "men-line": {
+        "role": "neutral",
+        "displayName": "Charcoal Hairline",
+        "canonical": "#413C34",
+        "tonalRamp": [
+          "#1D1A16",
+          "#2F2B25",
+          "#413C34",
+          "#5B554A",
+          "#7A7264",
+          "#9C9484",
+          "#BFB8A9",
+          "#E8E4DC"
+        ]
+      },
+      "men-ink": {
+        "role": "neutral",
+        "displayName": "Warm White",
+        "canonical": "#F5F1E8",
+        "tonalRamp": [
+          "#2B2924",
+          "#4D493F",
+          "#726C5E",
+          "#9A937F",
+          "#BFB8A4",
+          "#DAD3C1",
+          "#EBE6D9",
+          "#F5F1E8"
+        ]
+      },
+      "men-ink-soft": {
+        "role": "secondary",
+        "displayName": "Sand",
+        "canonical": "#D6C3A5",
+        "tonalRamp": [
+          "#2E281C",
+          "#4E4430",
+          "#6F6145",
+          "#927F5E",
+          "#B39C77",
+          "#C9B48F",
+          "#D6C3A5",
+          "#EFE7D8"
+        ]
+      },
+      "men-muted": {
+        "role": "neutral",
+        "displayName": "Sand Muted",
+        "canonical": "#A69A88",
+        "tonalRamp": [
+          "#22201C",
+          "#3D3931",
+          "#5A544A",
+          "#787064",
+          "#A69A88",
+          "#BEB4A5",
+          "#D6CFC3",
+          "#EFEBE5"
+        ]
+      },
+      "men-accent": {
+        "role": "primary",
+        "displayName": "Warm Sand",
+        "canonical": "#D6C3A5",
+        "tonalRamp": [
+          "#2E281C",
+          "#4E4430",
+          "#6F6145",
+          "#927F5E",
+          "#B39C77",
+          "#C9B48F",
+          "#D6C3A5",
+          "#EFE7D8"
+        ]
+      },
+      "men-accent-soft": {
+        "role": "secondary",
+        "displayName": "Olive Brown",
+        "canonical": "#4A4133",
+        "tonalRamp": [
+          "#211D16",
+          "#352F25",
+          "#4A4133",
+          "#645846",
+          "#82755C",
+          "#A29478",
+          "#C4B9A1",
+          "#E9E4D8"
+        ]
+      },
+      "men-on-accent": {
+        "role": "neutral",
+        "displayName": "Charcoal on Sand",
+        "canonical": "#171717",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#171717",
+          "#2A2A2A",
+          "#444444",
+          "#666666",
+          "#8C8C8C",
+          "#B5B5B5",
+          "#E6E6E6"
+        ]
+      },
+      "men-cta": {
+        "role": "primary",
+        "displayName": "Sand Button",
+        "canonical": "#D6C3A5",
+        "tonalRamp": [
+          "#2E281C",
+          "#4E4430",
+          "#6F6145",
+          "#927F5E",
+          "#B39C77",
+          "#C9B48F",
+          "#D6C3A5",
+          "#EFE7D8"
+        ]
+      },
+      "men-cta-hover": {
+        "role": "primary",
+        "displayName": "Sand Button Hover",
+        "canonical": "#E6D8BF",
+        "tonalRamp": [
+          "#302A1E",
+          "#524834",
+          "#756749",
+          "#998762",
+          "#BBA87E",
+          "#D3C39F",
+          "#E6D8BF",
+          "#F4EEE1"
+        ]
+      },
+      "men-on-cta": {
+        "role": "neutral",
+        "displayName": "Charcoal on Button",
+        "canonical": "#171717",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#171717",
+          "#2A2A2A",
+          "#444444",
+          "#666666",
+          "#8C8C8C",
+          "#B5B5B5",
+          "#E6E6E6"
+        ]
+      },
+      "women-ground": {
+        "role": "neutral",
+        "displayName": "Rose White",
+        "canonical": "#F8F1F2",
+        "tonalRamp": [
+          "#2C2426",
+          "#4F4145",
+          "#756268",
+          "#9C848B",
+          "#C0A9B0",
+          "#DCCACE",
+          "#ECE0E3",
+          "#F8F1F2"
+        ]
+      },
+      "women-elevated": {
+        "role": "neutral",
+        "displayName": "White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#262626",
+          "#474747",
+          "#6B6B6B",
+          "#8F8F8F",
+          "#B3B3B3",
+          "#D4D4D4",
+          "#EDEDED",
+          "#FFFFFF"
+        ]
+      },
+      "women-surface": {
+        "role": "neutral",
+        "displayName": "Blush Fill",
+        "canonical": "#F1E3E6",
+        "tonalRamp": [
+          "#2B2123",
+          "#4D3B3F",
+          "#725A60",
+          "#987A81",
+          "#BC9EA6",
+          "#D8C1C7",
+          "#E7D5D9",
+          "#F1E3E6"
+        ]
+      },
+      "women-line": {
+        "role": "neutral",
+        "displayName": "Blush Hairline",
+        "canonical": "#E9D6DA",
+        "tonalRamp": [
+          "#2A1F21",
+          "#4B383C",
+          "#6F565C",
+          "#94767D",
+          "#B79AA2",
+          "#D2BBC1",
+          "#E9D6DA",
+          "#F4EBED"
+        ]
+      },
+      "women-ink": {
+        "role": "neutral",
+        "displayName": "Deep Plum Ink",
+        "canonical": "#3B1F35",
+        "tonalRamp": [
+          "#1D0F1A",
+          "#3B1F35",
+          "#553150",
+          "#72476C",
+          "#93648C",
+          "#B48BAE",
+          "#D2B6CE",
+          "#EDE0EB"
+        ]
+      },
+      "women-ink-soft": {
+        "role": "neutral",
+        "displayName": "Plum Soft",
+        "canonical": "#6A4761",
+        "tonalRamp": [
+          "#24171F",
+          "#3F2A39",
+          "#6A4761",
+          "#82597A",
+          "#9E7595",
+          "#B996B1",
+          "#D4BBCE",
+          "#EFE3EC"
+        ]
+      },
+      "women-muted": {
+        "role": "neutral",
+        "displayName": "Plum Muted",
+        "canonical": "#77596D",
+        "tonalRamp": [
+          "#251C22",
+          "#40303B",
+          "#5C4655",
+          "#77596D",
+          "#95768B",
+          "#B296A9",
+          "#D0BAC9",
+          "#EDE2EA"
+        ]
+      },
+      "women-accent": {
+        "role": "primary",
+        "displayName": "Deep Plum",
+        "canonical": "#3B1F35",
+        "tonalRamp": [
+          "#1D0F1A",
+          "#3B1F35",
+          "#553150",
+          "#72476C",
+          "#93648C",
+          "#B48BAE",
+          "#D2B6CE",
+          "#EDE0EB"
+        ]
+      },
+      "women-accent-soft": {
+        "role": "secondary",
+        "displayName": "Blush",
+        "canonical": "#D8A7B1",
+        "tonalRamp": [
+          "#33191E",
+          "#5B2E38",
+          "#844655",
+          "#A96874",
+          "#C68A96",
+          "#D8A7B1",
+          "#E7C7CE",
+          "#F5E6EA"
+        ]
+      },
+      "women-on-accent": {
+        "role": "neutral",
+        "displayName": "Rose White on Plum",
+        "canonical": "#F8F1F2",
+        "tonalRamp": [
+          "#2C2426",
+          "#4F4145",
+          "#756268",
+          "#9C848B",
+          "#C0A9B0",
+          "#DCCACE",
+          "#ECE0E3",
+          "#F8F1F2"
+        ]
+      },
+      "women-cta": {
+        "role": "primary",
+        "displayName": "Plum Button",
+        "canonical": "#3B1F35",
+        "tonalRamp": [
+          "#1D0F1A",
+          "#3B1F35",
+          "#553150",
+          "#72476C",
+          "#93648C",
+          "#B48BAE",
+          "#D2B6CE",
+          "#EDE0EB"
+        ]
+      },
+      "women-cta-hover": {
+        "role": "primary",
+        "displayName": "Plum Button Hover",
+        "canonical": "#2A1526",
+        "tonalRamp": [
+          "#150A13",
+          "#2A1526",
+          "#43223D",
+          "#5F3357",
+          "#7F4C75",
+          "#A26F98",
+          "#C79EBF",
+          "#E9D6E5"
+        ]
+      },
+      "women-on-cta": {
+        "role": "neutral",
+        "displayName": "Rose White on Button",
+        "canonical": "#F8F1F2",
+        "tonalRamp": [
+          "#2C2426",
+          "#4F4145",
+          "#756268",
+          "#9C848B",
+          "#C0A9B0",
+          "#DCCACE",
+          "#ECE0E3",
+          "#F8F1F2"
+        ]
+      },
+      "kids-ground": {
+        "role": "neutral",
+        "displayName": "Cream",
+        "canonical": "#FFF9ED",
+        "tonalRamp": [
+          "#2E2A21",
+          "#514A3B",
+          "#776E58",
+          "#9F937A",
+          "#C4B79E",
+          "#DED3BD",
+          "#F0E8D6",
+          "#FFF9ED"
+        ]
+      },
+      "kids-elevated": {
+        "role": "neutral",
+        "displayName": "White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#262626",
+          "#474747",
+          "#6B6B6B",
+          "#8F8F8F",
+          "#B3B3B3",
+          "#D4D4D4",
+          "#EDEDED",
+          "#FFFFFF"
+        ]
+      },
+      "kids-surface": {
+        "role": "neutral",
+        "displayName": "Cream Fill",
+        "canonical": "#FBEFD2",
+        "tonalRamp": [
+          "#2E2717",
+          "#52452A",
+          "#786644",
+          "#A08961",
+          "#C4AB80",
+          "#E0C9A2",
+          "#EFDDBB",
+          "#FBEFD2"
+        ]
+      },
+      "kids-line": {
+        "role": "neutral",
+        "displayName": "Cream Hairline",
+        "canonical": "#EFDFB6",
+        "tonalRamp": [
+          "#2C2513",
+          "#4F4224",
+          "#75633B",
+          "#9C8654",
+          "#C1A972",
+          "#DCC493",
+          "#EFDFB6",
+          "#F8EFD8"
+        ]
+      },
+      "kids-ink": {
+        "role": "neutral",
+        "displayName": "Forest Ink",
+        "canonical": "#2E3A2B",
+        "tonalRamp": [
+          "#171D16",
+          "#2E3A2B",
+          "#43533F",
+          "#5E7159",
+          "#7C9176",
+          "#9FB199",
+          "#C5D0C1",
+          "#E6EBE4"
+        ]
+      },
+      "kids-ink-soft": {
+        "role": "neutral",
+        "displayName": "Sage Soft",
+        "canonical": "#55654F",
+        "tonalRamp": [
+          "#1C221A",
+          "#33402F",
+          "#55654F",
+          "#6C7F64",
+          "#889C80",
+          "#A8B8A1",
+          "#C9D3C4",
+          "#E8EDE5"
+        ]
+      },
+      "kids-muted": {
+        "role": "neutral",
+        "displayName": "Sage Muted",
+        "canonical": "#5F6F58",
+        "tonalRamp": [
+          "#1F251D",
+          "#384334",
+          "#4C5B47",
+          "#5F6F58",
+          "#7D8E76",
+          "#9DAC96",
+          "#C1CBBC",
+          "#E5EAE2"
+        ]
+      },
+      "kids-accent": {
+        "role": "primary",
+        "displayName": "Sage",
+        "canonical": "#6F8068",
+        "tonalRamp": [
+          "#20261E",
+          "#3A4536",
+          "#4E5D48",
+          "#6F8068",
+          "#8A9A83",
+          "#A7B4A1",
+          "#C7D0C3",
+          "#E7EBE5"
+        ]
+      },
+      "kids-accent-soft": {
+        "role": "secondary",
+        "displayName": "Golden",
+        "canonical": "#F3D9A4",
+        "tonalRamp": [
+          "#33290F",
+          "#5C4A1D",
+          "#886E2F",
+          "#B29148",
+          "#D2B26F",
+          "#F3D9A4",
+          "#F8E7C4",
+          "#FCF4E4"
+        ]
+      },
+      "kids-on-accent": {
+        "role": "neutral",
+        "displayName": "Forest on Sage",
+        "canonical": "#1C2619",
+        "tonalRamp": [
+          "#1C2619",
+          "#2C3A28",
+          "#41543C",
+          "#5C7355",
+          "#7B9373",
+          "#9EB197",
+          "#C4D0C0",
+          "#E6EBE4"
+        ]
+      },
+      "kids-cta": {
+        "role": "primary",
+        "displayName": "Deep Sage Button",
+        "canonical": "#5E6E57",
+        "tonalRamp": [
+          "#1D231B",
+          "#353F31",
+          "#4E5D48",
+          "#5E6E57",
+          "#7B8D73",
+          "#9BAB94",
+          "#C0CCBB",
+          "#E5EAE2"
+        ]
+      },
+      "kids-cta-hover": {
+        "role": "primary",
+        "displayName": "Deep Sage Button Hover",
+        "canonical": "#4E5D48",
+        "tonalRamp": [
+          "#191E17",
+          "#2E372B",
+          "#4E5D48",
+          "#627556",
+          "#7F9276",
+          "#9FAE97",
+          "#C2CDBD",
+          "#E6EBE3"
+        ]
+      },
+      "kids-on-cta": {
+        "role": "neutral",
+        "displayName": "Cream on Button",
+        "canonical": "#FFF9ED",
+        "tonalRamp": [
+          "#2E2A21",
+          "#514A3B",
+          "#776E58",
+          "#9F937A",
+          "#C4B79E",
+          "#DED3BD",
+          "#F0E8D6",
+          "#FFF9ED"
+        ]
+      },
+      "wholesale-ground": {
+        "role": "neutral",
+        "displayName": "Stone",
+        "canonical": "#F5F5F3",
+        "tonalRamp": [
+          "#262625",
+          "#474746",
+          "#6B6B69",
+          "#8F8F8D",
+          "#B3B3B0",
+          "#D4D4D1",
+          "#E8E8E6",
+          "#F5F5F3"
+        ]
+      },
+      "wholesale-elevated": {
+        "role": "neutral",
+        "displayName": "White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#262626",
+          "#474747",
+          "#6B6B6B",
+          "#8F8F8F",
+          "#B3B3B3",
+          "#D4D4D4",
+          "#EDEDED",
+          "#FFFFFF"
+        ]
+      },
+      "wholesale-surface": {
+        "role": "neutral",
+        "displayName": "Stone Fill",
+        "canonical": "#ECECE9",
+        "tonalRamp": [
+          "#242423",
+          "#454543",
+          "#686866",
+          "#8B8B88",
+          "#AFAFAB",
+          "#CFCFCB",
+          "#DEDEDB",
+          "#ECECE9"
+        ]
+      },
+      "wholesale-line": {
+        "role": "neutral",
+        "displayName": "Stone Hairline",
+        "canonical": "#DCDCD8",
+        "tonalRamp": [
+          "#222221",
+          "#41413F",
+          "#62625F",
+          "#85857F",
+          "#A9A9A4",
+          "#C5C5C0",
+          "#DCDCD8",
+          "#EFEFEC"
+        ]
+      },
+      "wholesale-ink": {
+        "role": "neutral",
+        "displayName": "Near Black",
+        "canonical": "#161616",
+        "tonalRamp": [
+          "#0A0A0A",
+          "#161616",
+          "#292929",
+          "#434343",
+          "#656565",
+          "#8B8B8B",
+          "#B4B4B4",
+          "#E5E5E5"
+        ]
+      },
+      "wholesale-ink-soft": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "#444442",
+        "tonalRamp": [
+          "#171716",
+          "#2C2C2B",
+          "#444442",
+          "#5E5E5B",
+          "#7B7B77",
+          "#9C9C97",
+          "#BFBFBB",
+          "#E4E4E2"
+        ]
+      },
+      "wholesale-muted": {
+        "role": "neutral",
+        "displayName": "Stone Muted",
+        "canonical": "#6B6B64",
+        "tonalRamp": [
+          "#232321",
+          "#3B3B37",
+          "#54544E",
+          "#6B6B64",
+          "#87877F",
+          "#A6A69E",
+          "#C7C7C1",
+          "#E7E7E4"
+        ]
+      },
+      "wholesale-accent": {
+        "role": "primary",
+        "displayName": "Near Black",
+        "canonical": "#161616",
+        "tonalRamp": [
+          "#0A0A0A",
+          "#161616",
+          "#292929",
+          "#434343",
+          "#656565",
+          "#8B8B8B",
+          "#B4B4B4",
+          "#E5E5E5"
+        ]
+      },
+      "wholesale-accent-soft": {
+        "role": "secondary",
+        "displayName": "Stone Tint",
+        "canonical": "#E2E2DE",
+        "tonalRamp": [
+          "#232322",
+          "#434341",
+          "#656562",
+          "#898984",
+          "#ADADA8",
+          "#C9C9C5",
+          "#E2E2DE",
+          "#F1F1EF"
+        ]
+      },
+      "wholesale-on-accent": {
+        "role": "neutral",
+        "displayName": "White on Black",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#262626",
+          "#474747",
+          "#6B6B6B",
+          "#8F8F8F",
+          "#B3B3B3",
+          "#D4D4D4",
+          "#EDEDED",
+          "#FFFFFF"
+        ]
+      },
+      "wholesale-cta": {
+        "role": "primary",
+        "displayName": "Black Button",
+        "canonical": "#161616",
+        "tonalRamp": [
+          "#0A0A0A",
+          "#161616",
+          "#292929",
+          "#434343",
+          "#656565",
+          "#8B8B8B",
+          "#B4B4B4",
+          "#E5E5E5"
+        ]
+      },
+      "wholesale-cta-hover": {
+        "role": "primary",
+        "displayName": "Black Button Hover",
+        "canonical": "#2E2E2C",
+        "tonalRamp": [
+          "#111110",
+          "#1F1F1E",
+          "#2E2E2C",
+          "#484846",
+          "#666663",
+          "#8B8B87",
+          "#B3B3AF",
+          "#E3E3E1"
+        ]
+      },
+      "wholesale-on-cta": {
+        "role": "neutral",
+        "displayName": "White on Button",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#262626",
+          "#474747",
+          "#6B6B6B",
+          "#8F8F8F",
+          "#B3B3B3",
+          "#D4D4D4",
+          "#EDEDED",
+          "#FFFFFF"
+        ]
+      },
+      "viewer-scrim": {
+        "role": "neutral",
+        "displayName": "Viewer Scrim",
+        "canonical": "#141110",
+        "tonalRamp": [
+          "#141110",
+          "#2A2523",
+          "#433C39",
+          "#615854",
+          "#827873",
+          "#A59C97",
+          "#C9C2BE",
+          "#E9E5E3"
+        ]
+      },
+      "overlay-scrim": {
+        "role": "neutral",
+        "displayName": "Overlay Scrim",
+        "canonical": "rgb(0 0 0 / 0.5)",
+        "tonalRamp": [
+          "#000000",
+          "#1A1A1A",
+          "#333333",
+          "#4D4D4D",
+          "#666666",
+          "#808080",
+          "#B3B3B3",
+          "#E6E6E6"
+        ]
+      },
+      "men-danger": {
+        "role": "tertiary",
+        "displayName": "Muted Rose (Men)",
+        "canonical": "#E8A59C",
+        "tonalRamp": [
+          "#3A1F1B",
+          "#5E322C",
+          "#83463D",
+          "#A85C51",
+          "#C67C71",
+          "#E8A59C",
+          "#F0C4BE",
+          "#F8E2DF"
+        ]
+      },
+      "women-danger": {
+        "role": "tertiary",
+        "displayName": "Deep Berry",
+        "canonical": "#A33A4A",
+        "tonalRamp": [
+          "#2B0F14",
+          "#4C1A22",
+          "#6F2833",
+          "#A33A4A",
+          "#C05E6C",
+          "#D48C96",
+          "#E5B9BF",
+          "#F4E1E4"
+        ]
+      },
+      "kids-danger": {
+        "role": "tertiary",
+        "displayName": "Burnt Clay",
+        "canonical": "#B24E2E",
+        "tonalRamp": [
+          "#2E1309",
+          "#502215",
+          "#763322",
+          "#B24E2E",
+          "#C87254",
+          "#DA9A83",
+          "#E9C2B3",
+          "#F6E5DD"
+        ]
+      },
+      "wholesale-danger": {
+        "role": "tertiary",
+        "displayName": "Signal Red",
+        "canonical": "#B42318",
+        "tonalRamp": [
+          "#2E0A07",
+          "#51120C",
+          "#771A11",
+          "#B42318",
+          "#CE4E42",
+          "#DF8076",
+          "#ECB2AC",
+          "#F7E0DD"
+        ]
+      }
+    },
+    "themes": {
+      "note": "A theme is a [data-theme] attribute on <html> set by useTheme() in the owning route. Each redefines the same fourteen --color-* custom properties; components never branch per theme.",
+      "default": "women",
+      "order": [
+        "men",
+        "women",
+        "kids"
+      ],
+      "map": {
+        "men": "/shop/men (color-scheme: dark)",
+        "women": "/shop/women and the @theme default block",
+        "kids": "/shop/kids",
+        "wholesale": "/wholesale",
+        "gate": "/ (landing) — identical values to men, color-scheme: dark"
+      },
+      "kidsCtaNote": "kids-accent keeps the client's exact sage #6F8068 for pills, rules and rings; kids-cta is darkened to #5E6E57 because the exact sage under cream on-cta text reaches only ~4.0:1, while #5E6E57 clears 4.5:1 (AA).",
+      "dangerNote": "danger joined the token set with the checkout build. It is validation-only: the invalid field's underline and label, the error line beneath it, and submission/config failure messages. Each theme picks the value that stays legible on its own ground rather than a single shared red."
+    },
+    "typographyMeta": {
+      "masthead": {
+        "displayName": "Masthead",
+        "purpose": "The word Genvio on the landing gate only."
+      },
+      "tagline": {
+        "displayName": "Tagline",
+        "purpose": "Exotic Apparel beneath the masthead; 0.42em tracked uppercase, one of the two permitted tracked-uppercase sites."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Section titles (Men, Kids, Bag) and the gate door words."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Product name on the product page; the wholesale title."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "One-line italic blurb under a section title, in ink-soft, max-width 28rem."
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "Playfair figures via the Price component; the naira sign alone is Inter at 0.95em, weight 400, tracking -0.02em, because Playfair Display ships no U+20A6."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "Genvio Exotic Apparel in the retail and wholesale headers, sentence case."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text, inputs, dialog copy."
+      },
+      "body-strong": {
+        "displayName": "Body Strong",
+        "purpose": "Product names on cards and bag rows, form section labels."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Brand, colour count and size range, availability, counts; always in muted."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Pills, the sort select, quiet buttons and text links."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Primary CTA labels."
+      },
+      "section-label": {
+        "displayName": "Section Label",
+        "purpose": "MEN · WOMEN · KIDS in the switcher; 0.18em tracked uppercase, the other permitted site."
+      },
+      "field-phone": {
+        "displayName": "Phone Field",
+        "purpose": "The one oversized input: 24-30px Inter 500, +0.04em, tabular. Largest thing on the checkout's first card."
+      }
+    },
+    "shadows": [
+      {
+        "name": "contact-hairline",
+        "value": "0 1px 0 0 rgb(0 0 0 / 0.03)",
+        "purpose": "Quiet Add to Bag button at rest."
+      },
+      {
+        "name": "pill-lift",
+        "value": "0 2px 6px -2px rgb(0 0 0 / 0.3)",
+        "purpose": "Active category pill only."
+      },
+      {
+        "name": "quiet-hover",
+        "value": "0 3px 8px -3px rgb(0 0 0 / 0.25)",
+        "purpose": "Quiet button on hover."
+      },
+      {
+        "name": "cta-rest",
+        "value": "0 6px 16px -6px rgb(0 0 0 / 0.35)",
+        "purpose": "Every primary button at rest."
+      },
+      {
+        "name": "cta-hover",
+        "value": "0 8px 20px -6px rgb(0 0 0 / 0.4)",
+        "purpose": "Primary button on hover; dropped on :active and when disabled."
+      },
+      {
+        "name": "sheet",
+        "value": "0 24px 60px -20px rgb(0 0 0 / 0.5)",
+        "purpose": "Quick-add sheet."
+      },
+      {
+        "name": "dialog",
+        "value": "0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2)",
+        "purpose": "Search dialog."
+      },
+      {
+        "name": "checkout-sheet",
+        "value": "0 32px 80px -24px rgb(0 0 0 / 0.55)",
+        "purpose": "The checkout overlay; the deepest shadow in the build."
+      },
+      {
+        "name": "focus-underline",
+        "value": "0 1px 0 0 var(--color-accent)",
+        "purpose": "Not depth: doubles a focused underlined field's hairline to 2px without moving the baseline."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The only easing curve; exposed as --ease-out-expo."
+      },
+      {
+        "name": "theme-crossfade",
+        "value": "400ms",
+        "purpose": "background-color/color on body and the shop wrapper; background/border on the retail header, wholesale header and catalogue filter bar; section-tab colour."
+      },
+      {
+        "name": "tab-rule",
+        "value": "500ms",
+        "purpose": "scaleX(0 -> 1) of the 1.5px accent rule under the active section tab."
+      },
+      {
+        "name": "control-state",
+        "value": "300ms",
+        "purpose": "Buttons, pills, selects, swatches, thumbnails: background, border, colour, shadow, transform."
+      },
+      {
+        "name": "card-ring",
+        "value": "500ms",
+        "purpose": "Card image ring line/70 -> accent/60 on hover."
+      },
+      {
+        "name": "card-zoom",
+        "value": "1200ms, scale 1.04",
+        "purpose": "Product card image on hover."
+      },
+      {
+        "name": "tile-zoom",
+        "value": "700ms, scale 1.02",
+        "purpose": "Wholesale masonry tile on hover."
+      },
+      {
+        "name": "gate-rise",
+        "value": "900ms, translateY(14px) -> 0, opacity 0 -> 1, fill backwards",
+        "purpose": "Masthead (0ms), tagline (140ms), door bands (520ms / 660ms)."
+      },
+      {
+        "name": "gate-settle",
+        "value": "1500ms, scale 1.08 -> 1, opacity 0 -> 1, fill backwards",
+        "purpose": "Door photographs, delayed 220ms / 360ms."
+      },
+      {
+        "name": "gate-door-hover",
+        "value": "flex-grow 1 -> 1.35 over 600ms; photo scale 1.04 over 1100ms; sibling opacity 0.7; band ground/85 -> ground/95 over 500ms; arrow translateX(8px) over 500ms",
+        "purpose": "Pointer devices from 768px only."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "transition-duration 0.01ms; animation-duration 0.01ms; animation-delay 0; iteration-count 1; gate door flex-grow 1",
+        "purpose": "prefers-reduced-motion: reduce."
+      },
+      {
+        "name": "checkout-in",
+        "value": "sheet-up 550ms (mobile) / sheet-in 450ms (>=640px); scrim 400ms",
+        "purpose": "Checkout overlay entrance."
+      },
+      {
+        "name": "checkout-out",
+        "value": "sheet-down 320ms cubic-bezier(0.4,0,1,1) / sheet-out 260ms; scrim 300ms ease-in",
+        "purpose": "Checkout overlay exit; faster and eased-in, unlike the entrance."
+      },
+      {
+        "name": "step-track",
+        "value": "450ms translateX by whole widths; outgoing panel opacity 350ms; focus lands at 460ms",
+        "purpose": "Moving between the four checkout cards."
+      },
+      {
+        "name": "checkout-body-height",
+        "value": "height 450ms",
+        "purpose": "The single licensed layout-property transition: the sheet body follows the active card's height. At most three fires per checkout on one container."
+      },
+      {
+        "name": "step-rule",
+        "value": "500ms scaleX(0 -> 1), transform-origin left",
+        "purpose": "The accent rule under the current word of the step trail."
+      },
+      {
+        "name": "recognition-cascade",
+        "value": "field-fill 900ms accent-soft -> transparent, delay calc(var(--fill-step) * 70ms), fill backwards",
+        "purpose": "Saved details arriving as one cascade down the form after a phone-number match."
+      },
+      {
+        "name": "copy-feedback",
+        "value": "account number colour 500ms, pill 300ms, held 2000ms",
+        "purpose": "Copying the bank account number."
+      },
+      {
+        "name": "success-check",
+        "value": "disc-in 500ms scale 0.6 -> 1, then check-draw stroke-dashoffset 26 -> 0 over 600ms after 200ms",
+        "purpose": "The drawn check on the Done card. No confetti."
+      },
+      {
+        "name": "drag-dismiss",
+        "value": "no transition while dragging; dismiss past 33% of sheet height or velocity > 0.6px/ms; otherwise spring back over 400ms",
+        "purpose": "Mobile grab-handle gesture on the checkout sheet."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ],
+    "layout": {
+      "container": "1280px (max-w-7xl); bag column 672px",
+      "gutters": "16px mobile, 24px from sm",
+      "productGrid": "2 / 3 / 4 columns at base / sm / lg; gaps 16x40px growing to 24x56px; images 3:4",
+      "wholesaleMasonry": "CSS columns 2 / 3 / 4 at base / md / xl; gaps 12-16px",
+      "retailHeader": "48px + 40px switcher row on mobile (filter bar sticks at 88px); 56px from sm (filter bar sticks at 56px)",
+      "stickyBars": "ground at 90-92% with backdrop-blur(4px) and a line hairline",
+      "gate": "full dvh; masthead top pad 36-56px; doors stacked (min 40dvh each) then side by side from md with a 1px line seam",
+      "checkoutSheet": "Bottom sheet under 640px: full width, 94dvh cap, 16px top corners, 36x4px line grab handle. Centred modal from sm: 512px wide in a 24px inset, 88dvh cap, 12px all round. Fixed header + height-following scroll body; four cards on a flex track. Card padding 20px mobile / 32px from sm.",
+      "outsideTheSystem": "/admin is an internal tool styled with inline styles, deliberately outside the token system. Not a pattern to copy."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button (CTA)",
+      "kind": "button",
+      "refersTo": "button-cta",
+      "description": "Add to Bag, Send order, Continue shopping. cta fill, low contact shadow, 1px press.",
+      "html": "<button class=\"ds-btn-cta\">Add to Bag</button>",
+      "css": ".ds-btn-cta { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 24px; border: 0; border-radius: 6px; background: var(--color-cta); color: var(--color-on-cta); font-family: Inter, system-ui, sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.02em; box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.35); cursor: pointer; transition: background-color 300ms, border-color 300ms, color 300ms, box-shadow 300ms, transform 300ms; } .ds-btn-cta:hover { background: var(--color-cta-hover); box-shadow: 0 8px 20px -6px rgb(0 0 0 / 0.4); } .ds-btn-cta:active { transform: translateY(1px); box-shadow: none; } .ds-btn-cta:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Primary Button (disabled)",
+      "kind": "button",
+      "refersTo": "button-cta-disabled",
+      "description": "The CTA before any size is chosen: outline only, label becomes the instruction.",
+      "html": "<button class=\"ds-btn-cta-disabled\" disabled>Select sizes to add</button>",
+      "css": ".ds-btn-cta-disabled { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 24px; border: 1px solid var(--color-line); border-radius: 6px; background: transparent; color: var(--color-muted); font-family: Inter, system-ui, sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.02em; box-shadow: none; cursor: not-allowed; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "The card's Add to Bag: accent/50 outline on transparent, fills with accent-soft on hover.",
+      "html": "<button class=\"ds-btn-quiet\">Add to Bag</button>",
+      "css": ".ds-btn-quiet { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 40px; padding: 0 16px; border: 1px solid color-mix(in srgb, var(--color-accent) 50%, transparent); border-radius: 6px; background: transparent; color: var(--color-ink); font-family: Inter, system-ui, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.02em; box-shadow: 0 1px 0 0 rgb(0 0 0 / 0.03); cursor: pointer; transition: background-color 300ms, border-color 300ms, color 300ms, box-shadow 300ms, transform 300ms; } .ds-btn-quiet:hover { background: var(--color-accent-soft); border-color: var(--color-accent); box-shadow: 0 3px 8px -3px rgb(0 0 0 / 0.25); } .ds-btn-quiet:active { transform: translateY(1px); box-shadow: none; } .ds-btn-quiet:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Category Pill",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Outlined filter pill; the active one fills with the room's accent.",
+      "html": "<div style=\"display:flex;gap:8px\"><button class=\"ds-pill ds-pill--active\" aria-pressed=\"true\">All</button><button class=\"ds-pill\" aria-pressed=\"false\">Denim</button><button class=\"ds-pill\" aria-pressed=\"false\">Knitwear</button></div>",
+      "css": ".ds-pill { flex-shrink: 0; height: 36px; padding: 0 16px; border: 1px solid var(--color-line); border-radius: 9999px; background: transparent; color: var(--color-ink-soft); font-family: Inter, system-ui, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.04em; cursor: pointer; transition: background-color 300ms, border-color 300ms, color 300ms, box-shadow 300ms; } .ds-pill:hover { border-color: var(--color-accent); color: var(--color-ink); } .ds-pill--active, .ds-pill--active:hover { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); box-shadow: 0 2px 6px -2px rgb(0 0 0 / 0.3); } .ds-pill:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Sort Select",
+      "kind": "input",
+      "refersTo": "select-sort",
+      "description": "A native select dressed as a pill, chevron in muted at the right.",
+      "html": "<label class=\"ds-sort\"><select class=\"ds-sort__select\" aria-label=\"Sort by\"><option>Newest</option><option>Price: low to high</option><option>Price: high to low</option><option>Name</option></select><svg class=\"ds-sort__chevron\" xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m6 9 6 6 6-6\"/></svg></label>",
+      "css": ".ds-sort { position: relative; display: inline-flex; align-items: center; } .ds-sort__select { appearance: none; -webkit-appearance: none; height: 36px; padding: 0 36px 0 16px; border: 1px solid var(--color-line); border-radius: 9999px; background: transparent; color: var(--color-ink-soft); font-family: Inter, system-ui, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.04em; cursor: pointer; transition: border-color 300ms, color 300ms; } .ds-sort__select:hover { border-color: var(--color-accent); color: var(--color-ink); } .ds-sort__select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; } .ds-sort__chevron { position: absolute; right: 14px; pointer-events: none; color: var(--color-muted); }"
+    },
+    {
+      "name": "Quantity Input",
+      "kind": "input",
+      "refersTo": "input-quantity",
+      "description": "Per-size quantity field in the quick-add sheet; border turns accent on focus.",
+      "html": "<div style=\"display:flex;align-items:center;gap:12px;font-family:Inter,system-ui,sans-serif\"><span style=\"width:56px;font-size:14px;font-weight:500;font-variant-numeric:tabular-nums\">M</span><span style=\"flex:1;font-size:12px;color:var(--color-muted)\">6 available</span><input class=\"ds-qty\" type=\"number\" min=\"0\" max=\"6\" placeholder=\"0\" aria-label=\"Quantity for M\"></div>",
+      "css": ".ds-qty { width: 64px; height: 40px; text-align: center; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums; border: 1px solid var(--color-line); border-radius: 6px; background: var(--color-ground); color: var(--color-ink); appearance: textfield; -moz-appearance: textfield; transition: border-color 300ms; } .ds-qty::-webkit-outer-spin-button, .ds-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } .ds-qty::placeholder { color: color-mix(in srgb, var(--color-muted) 70%, transparent); } .ds-qty:focus { outline: none; border-color: var(--color-accent); } .ds-qty:disabled { opacity: 0.4; cursor: not-allowed; }"
+    },
+    {
+      "name": "Section Switcher",
+      "kind": "nav",
+      "refersTo": "section-label",
+      "description": "MEN · WOMEN · KIDS, tracked uppercase; a 1.5px accent rule grows from the centre under the active label.",
+      "html": "<nav class=\"ds-switch\" aria-label=\"Shop sections\"><a class=\"ds-tab ds-tab--active\" href=\"#\">Men</a><span class=\"ds-dot\" aria-hidden=\"true\">·</span><a class=\"ds-tab\" href=\"#\">Women</a><span class=\"ds-dot\" aria-hidden=\"true\">·</span><a class=\"ds-tab\" href=\"#\">Kids</a></nav>",
+      "css": ".ds-switch { display: flex; align-items: center; gap: 14px; font-family: Inter, system-ui, sans-serif; } .ds-dot { color: color-mix(in srgb, var(--color-muted) 60%, transparent); font-size: 12px; user-select: none; } .ds-tab { position: relative; padding: 8px 2px; font-size: 13px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-muted); text-decoration: none; transition: color 400ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-tab::after { content: \"\"; position: absolute; left: 0; right: 0; bottom: 2px; height: 1.5px; background: var(--color-accent); transform: scaleX(0); transform-origin: center; transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-tab:hover, .ds-tab--active { color: var(--color-ink); } .ds-tab--active::after { transform: scaleX(1); } .ds-tab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; border-radius: 2px; }"
+    },
+    {
+      "name": "Retail Header",
+      "kind": "nav",
+      "refersTo": "wordmark",
+      "description": "Sticky ground/90 bar with backdrop blur, hairline bottom border, wordmark left, icon buttons and bag count right.",
+      "html": "<header class=\"ds-header\"><a class=\"ds-wordmark\" href=\"#\">Genvio Exotic Apparel</a><div class=\"ds-header__actions\"><button class=\"ds-iconbtn\" aria-label=\"Search\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg></button><a class=\"ds-iconbtn\" href=\"#\" aria-label=\"Bag, 3 items\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z\"/><path d=\"M3 6h18\"/><path d=\"M16 10a4 4 0 0 1-8 0\"/></svg><span class=\"ds-bagcount\">3</span></a></div></header>",
+      "css": ".ds-header { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; background: color-mix(in srgb, var(--color-ground) 90%, transparent); backdrop-filter: blur(4px); border-bottom: 1px solid var(--color-line); transition: background-color 400ms cubic-bezier(0.16, 1, 0.3, 1), border-color 400ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-wordmark { font-family: 'Playfair Display', Georgia, serif; font-size: 20px; font-weight: 600; letter-spacing: 0.025em; color: var(--color-ink); text-decoration: none; white-space: nowrap; } .ds-header__actions { display: flex; align-items: center; gap: 4px; } .ds-iconbtn { display: inline-flex; align-items: center; gap: 6px; padding: 8px; border: 0; border-radius: 9999px; background: transparent; color: var(--color-ink-soft); cursor: pointer; text-decoration: none; transition: color 150ms, background-color 150ms; } .ds-iconbtn:hover { color: var(--color-ink); background: var(--color-surface); } .ds-iconbtn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; } .ds-bagcount { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 9999px; background: var(--color-ink); color: var(--color-ground); font-family: Inter, system-ui, sans-serif; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Product Card",
+      "kind": "card",
+      "refersTo": "card-image",
+      "description": "3:4 image in a line/70 ring, name, brand, Playfair price beside the variant summary, quiet button.",
+      "html": "<article class=\"ds-card\"><a class=\"ds-card__media\" href=\"#\"><div class=\"ds-card__frame\"><div class=\"ds-card__img\"></div></div><span class=\"ds-badge\">New</span></a><div class=\"ds-card__body\"><h3 class=\"ds-card__name\">Unstructured Linen Blazer</h3><p class=\"ds-card__brand\">Maison Noir</p><div class=\"ds-card__row\"><p class=\"ds-price\"><span class=\"ds-price__sign\">₦</span>68,000</p><p class=\"ds-card__meta\">2 colours · S – XL</p></div><button class=\"ds-btn-quiet\">Add to Bag</button></div></article>",
+      "css": ".ds-card { width: 260px; font-family: Inter, system-ui, sans-serif; } .ds-card__media { position: relative; display: block; text-decoration: none; } .ds-card__frame { aspect-ratio: 3 / 4; overflow: hidden; border-radius: 6px; background: var(--color-surface); box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-line) 70%, transparent); transition: box-shadow 500ms cubic-bezier(0.16, 1, 0.3, 1), background-color 500ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-card:hover .ds-card__frame { box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 60%, transparent); } .ds-card__img { width: 100%; height: 100%; background: linear-gradient(160deg, var(--color-surface), var(--color-accent-soft)); transition: transform 1200ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-card:hover .ds-card__img { transform: scale(1.04); } .ds-badge { position: absolute; top: 12px; left: 12px; display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 4px; background: var(--color-accent-soft); color: var(--color-ink); font-size: 11px; font-weight: 500; } .ds-card__body { margin-top: 16px; padding: 0 2px; } .ds-card__name { margin: 0; font-size: 15px; font-weight: 500; line-height: 1.375; color: var(--color-ink); text-wrap: balance; } .ds-card__brand { margin: 4px 0 0; font-size: 13px; color: var(--color-muted); } .ds-card__row { margin-top: 8px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; } .ds-price { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 20px; color: var(--color-ink-soft); font-variant-numeric: tabular-nums; } .ds-price__sign { font-family: Inter, system-ui, sans-serif; font-size: 0.95em; font-weight: 400; letter-spacing: -0.02em; margin-right: 0.06em; } .ds-card__meta { margin: 0; font-size: 12px; color: var(--color-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-card .ds-btn-quiet { margin-top: 14px; display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 40px; border: 1px solid color-mix(in srgb, var(--color-accent) 50%, transparent); border-radius: 6px; background: transparent; color: var(--color-ink); font-size: 13px; font-weight: 500; letter-spacing: 0.02em; box-shadow: 0 1px 0 0 rgb(0 0 0 / 0.03); cursor: pointer; transition: background-color 300ms, border-color 300ms, box-shadow 300ms, transform 300ms; } .ds-card .ds-btn-quiet:hover { background: var(--color-accent-soft); border-color: var(--color-accent); box-shadow: 0 3px 8px -3px rgb(0 0 0 / 0.25); } .ds-card .ds-btn-quiet:active { transform: translateY(1px); box-shadow: none; }"
+    },
+    {
+      "name": "Price",
+      "kind": "custom",
+      "refersTo": "price",
+      "description": "Naira sign in Inter at 0.95em/400, tracking -0.02em, on the baseline; figures in Playfair, tabular. Playfair Display ships no U+20A6 (measured: its naira advance equals the Georgia fallback's while other glyphs differ).",
+      "html": "<p class=\"ds-price-lg\"><span class=\"ds-price-lg__sign\">₦</span>68,000</p>",
+      "css": ".ds-price-lg { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 30px; color: var(--color-ink-soft); font-variant-numeric: tabular-nums; } .ds-price-lg__sign { font-family: Inter, system-ui, sans-serif; font-size: 0.95em; font-weight: 400; letter-spacing: -0.02em; margin-right: 0.06em; }"
+    },
+    {
+      "name": "Gate Door",
+      "kind": "custom",
+      "refersTo": "display",
+      "description": "Landing door: photograph with a ground/85 band at the foot carrying the door word, a sentence-case blurb and an arrow.",
+      "html": "<a class=\"ds-door\" href=\"#\"><div class=\"ds-door__photo\"></div><div class=\"ds-door__band\"><div><span class=\"ds-door__word\">Shop</span><span class=\"ds-door__blurb\">Men, Women and Kids — one bag across all three.</span></div><svg class=\"ds-door__arrow\" xmlns=\"http://www.w3.org/2000/svg\" width=\"28\" height=\"28\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m13 6 6 6-6 6\"/></svg></div></a>",
+      "css": ".ds-door { position: relative; display: block; width: 360px; height: 300px; overflow: hidden; background: var(--color-surface); text-decoration: none; } .ds-door__photo { position: absolute; inset: 0; background: linear-gradient(200deg, var(--color-surface), var(--color-accent-soft)); transition: transform 1100ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-door:hover .ds-door__photo, .ds-door:focus-visible .ds-door__photo { transform: scale(1.04); } .ds-door__band { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 28px; border-top: 1px solid var(--color-line); background: color-mix(in srgb, var(--color-ground) 85%, transparent); transition: background-color 500ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-door:hover .ds-door__band { background: color-mix(in srgb, var(--color-ground) 95%, transparent); } .ds-door__word { display: block; font-family: 'Playfair Display', Georgia, serif; font-size: 48px; font-weight: 500; line-height: 0.95; letter-spacing: -0.02em; color: var(--color-ink); } .ds-door__blurb { display: block; margin-top: 12px; font-family: Inter, system-ui, sans-serif; font-size: 14px; color: var(--color-ink-soft); text-wrap: balance; } .ds-door__arrow { flex-shrink: 0; margin-bottom: 4px; color: var(--color-ink-soft); transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1), color 500ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-door:hover .ds-door__arrow { transform: translateX(8px); color: var(--color-ink); } .ds-door:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -4px; }"
+    },
+    {
+      "name": "Underlined Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Every field inside the checkout sheet: a hairline, not a box. Accent plus a 1px accent box-shadow on focus, danger when invalid, muted placeholder at full opacity, an unchosen select keyed by data-empty.",
+      "html": "<div style=\"display:grid;gap:20px;width:320px\"><label class=\"ds-field\"><span class=\"ds-field__label\">Full name</span><input name=\"name\" value=\"Ada Okonkwo\"></label><label class=\"ds-field\"><span class=\"ds-field__label\">Delivery address</span><textarea rows=\"2\" placeholder=\"Street, building, landmark\"></textarea></label><label class=\"ds-field\"><span class=\"ds-field__label\">State</span><span class=\"ds-field__selectwrap\"><select data-empty=\"true\"><option>Choose…</option><option>Lagos</option><option>Abuja (FCT)</option></select><svg class=\"ds-field__chev\" xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m6 9 6 6 6-6\"/></svg></span></label><div><label class=\"ds-field is-invalid\"><span class=\"ds-field__label\">City</span><input name=\"city\" value=\"\"></label><p class=\"ds-field__error\">Enter your city</p></div></div>",
+      "css": ".ds-field { display:block; font-family: Inter, system-ui, sans-serif; font-size:14px; } .ds-field__label { display:block; font-size:12px; color:var(--color-muted); margin-bottom:2px; transition: color 300ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-field input, .ds-field textarea, .ds-field select { display:block; width:100%; background:transparent; border:0; border-bottom:1px solid var(--color-line); border-radius:0; padding:8px 0; color:var(--color-ink); font:inherit; line-height:1.4; outline:none; transition: border-color 300ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-field input::placeholder, .ds-field textarea::placeholder { color:var(--color-muted); opacity:1; } .ds-field textarea { resize:none; } .ds-field select { -webkit-appearance:none; appearance:none; padding-right:24px; cursor:pointer; } .ds-field select[data-empty=\"true\"] { color:var(--color-muted); } .ds-field:focus-within .ds-field__label { color:var(--color-ink-soft); } .ds-field input:focus, .ds-field textarea:focus, .ds-field select:focus { border-bottom-color:var(--color-accent); box-shadow:0 1px 0 0 var(--color-accent); } .ds-field.is-invalid input, .ds-field.is-invalid select { border-bottom-color:var(--color-danger); } .ds-field.is-invalid .ds-field__label { color:var(--color-danger); } .ds-field__error { margin:6px 0 0; font-size:12px; color:var(--color-danger); } .ds-field__selectwrap { position:relative; display:block; } .ds-field__chev { position:absolute; right:0; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--color-muted); }"
+    },
+    {
+      "name": "Step Trail",
+      "kind": "nav",
+      "refersTo": "meta",
+      "description": "Four words instead of a stepper: the current one in ink with an accent rule scaling from the left. No numbered circles, no bar, no count.",
+      "html": "<ol class=\"ds-trail\" aria-label=\"Checkout steps\"><li class=\"is-past\">Details</li><li class=\"is-current\" aria-current=\"step\">Summary</li><li>Payment</li><li>Done</li></ol>",
+      "css": ".ds-trail { display:flex; align-items:center; gap:10px; list-style:none; margin:0; padding:0; font-family: Inter, system-ui, sans-serif; font-size:12px; } .ds-trail li { position:relative; padding-bottom:6px; color:var(--color-muted); transition: color 300ms; } .ds-trail li.is-past { color:var(--color-ink-soft); } .ds-trail li.is-current { color:var(--color-ink); } .ds-trail li::after { content:\"\"; position:absolute; left:0; right:0; bottom:0; height:1.5px; background:var(--color-accent); transform:scaleX(0); transform-origin:left; transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-trail li.is-current::after { transform:scaleX(1); }"
+    },
+    {
+      "name": "Bank Account Card",
+      "kind": "card",
+      "refersTo": "account-card",
+      "description": "The checkout flow's only boxed surface: the NUBAN in Playfair grouped 4-3-3, with a copy pill that fills accent and reads Copied for two seconds.",
+      "html": "<div class=\"ds-acct\"><p class=\"ds-acct__bank\">Guaranty Trust Bank</p><div class=\"ds-acct__row\"><p class=\"ds-acct__num\">0123 456 789</p><button class=\"ds-acct__copy\" type=\"button\">Copy</button></div><p class=\"ds-acct__name\">Genvio Exotic Apparel Ltd</p></div>",
+      "css": ".ds-acct { width:360px; box-sizing:border-box; padding:24px; border:1px solid var(--color-line); border-radius:8px; background:var(--color-ground); font-family: Inter, system-ui, sans-serif; } .ds-acct__bank { margin:0; font-size:14px; color:var(--color-muted); } .ds-acct__row { margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:16px; } .ds-acct__num { margin:0; font-family:'Playfair Display', Georgia, serif; font-size:32px; line-height:1; letter-spacing:0.06em; font-variant-numeric:tabular-nums; color:var(--color-ink); transition: color 500ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-acct__copy { flex-shrink:0; display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 14px; border:1px solid var(--color-line); border-radius:9999px; background:transparent; color:var(--color-ink-soft); font-size:13px; font-weight:500; cursor:pointer; transition: background-color 300ms, border-color 300ms, color 300ms, transform 300ms; } .ds-acct__copy:hover { border-color:var(--color-accent); color:var(--color-ink); } .ds-acct__copy:active { transform:translateY(1px); } .ds-acct__copy:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; } .ds-acct__name { margin:12px 0 0; font-size:14px; font-weight:500; color:var(--color-ink); }"
+    },
+    {
+      "name": "Success Mark",
+      "kind": "custom",
+      "refersTo": "display",
+      "description": "The Done card: a check that draws itself once inside an accent disc, then the order reference in Playfair. No confetti.",
+      "html": "<div class=\"ds-success\"><span class=\"ds-success__disc\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 4.5 4.5L19 7\"/></svg></span><p class=\"ds-success__copy\">We’ll verify your payment and process your order. Keep this reference to hand.</p><p class=\"ds-success__ref\">GEA-20260911-014</p></div>",
+      "css": "@keyframes ds-disc-in { from { opacity:0; transform:scale(0.6); } to { opacity:1; transform:none; } } @keyframes ds-check-draw { to { stroke-dashoffset:0; } } .ds-success { display:flex; flex-direction:column; align-items:center; text-align:center; font-family: Inter, system-ui, sans-serif; } .ds-success__disc { width:56px; height:56px; border-radius:9999px; background:var(--color-accent); color:var(--color-on-accent); display:flex; align-items:center; justify-content:center; animation: ds-disc-in 500ms cubic-bezier(0.16, 1, 0.3, 1) both; } .ds-success__disc path { stroke-dasharray:26; stroke-dashoffset:26; animation: ds-check-draw 600ms cubic-bezier(0.16, 1, 0.3, 1) 200ms forwards; } .ds-success__copy { margin:16px 0 0; max-width:20rem; font-size:14px; line-height:1.6; color:var(--color-ink-soft); } .ds-success__ref { margin:12px 0 0; font-family:'Playfair Display', Georgia, serif; font-size:30px; letter-spacing:0.04em; font-variant-numeric:tabular-nums; color:var(--color-ink); user-select:all; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "One House, Three Rooms",
+    "overview": "Genvio is a single component system that walks through several rooms. Every surface is styled through fourteen semantic tokens (ground, elevated, surface, line, ink, ink-soft, muted, accent, accent-soft, on-accent, cta, cta-hover, on-cta, danger) and a data-theme attribute on html redefines all fourteen at once. The Men room is charcoal and sand; the Women room is plum and blush; the Kids room is sage, gold and cream; Wholesale is stone; the landing \"gate\" borrows the Men room because the shop opens onto Men first. Nothing else changes between rooms: the same card, the same pill, the same button, recoloured by a 400ms cross-fade.\n\nThe interface recedes so the photography can lead. Hierarchy is Photography → Product → Price → Action. Type carries the premium tone through one serif (Playfair Display) used sparingly for the masthead, section titles, product names and prices, and one sans (Inter) for everything operational. Tracked uppercase exists in exactly two places: the Men · Women · Kids switcher and the \"Exotic Apparel\" tagline under the masthead. Depth is almost entirely tonal; shadows are soft, low and reserved for things that can be pressed or that float above the page.\n\nThe build rejects the Shopify-clone and dashboard readings: no sidebar filters, no product-card inventory matrices, no gradient scrims over photographs, no emoji, no mixed icon sets. Motion is transform and opacity, eased with one curve, with a single licensed exception (the checkout sheet body follows its active card height).",
+    "keyCharacteristics": [
+      "Fourteen semantic tokens, four palettes, one component set; the theme follows the route.",
+      "Order-pad checkout: one sheet, four cards sliding sideways, underlined fields, a four-word step trail.",
+      "Men → Women → Kids is the fixed order everywhere the sections are listed.",
+      "Playfair Display for identity and prices; Inter for controls and metadata.",
+      "Tracked uppercase only in the section switcher and the masthead tagline.",
+      "Flat, hairline-bordered surfaces; shadows only under pressable or floating elements.",
+      "One easing (ease-out-expo), one theme cross-fade (400ms), unhurried image zooms (700–1200ms)."
+    ],
+    "rules": [
+      {
+        "name": "The Same Fourteen Rule",
+        "body": "A theme may only redefine the fourteen tokens (danger joined the thirteen when the checkout shipped). No component carries a per-theme branch; if a room needs a different look, the token values change, not the component.",
+        "section": "colors"
+      },
+      {
+        "name": "The Exact Accent Rule",
+        "body": "accent carries the client's signature colour unaltered. Where that colour cannot pass AA as a button fill, cta darkens and accent stays exact (Kids). Never darken the accent to fix the button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Validation-Only Danger Rule",
+        "body": "danger exists to say a field is wrong and nothing else. It carries the invalid field's underline, its label, its error line, and the two failure messages in the payment card. It is never a fill, a badge, a hover state, a chart colour or a piece of emphasis. Its values are per-theme: a light muted rose on the charcoal rooms (men-danger), a deep berry on plum (women-danger), a burnt clay on cream (kids-danger), a true red on stone (wholesale-danger) — each chosen to stay legible against its own ground rather than to be the same red everywhere.",
+        "section": "colors"
+      },
+      {
+        "name": "The Men-Women-Kids Rule",
+        "body": "Sections are listed Men, Women, Kids, in that order, in the switcher, the section config and any cross-links. The gate lands on Men.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Tracked Words Rule",
+        "body": "Tracked uppercase appears only in the section switcher (0.18em) and the masthead tagline (0.42em). Buttons, pills, labels and metadata are sentence case.",
+        "section": "typography"
+      },
+      {
+        "name": "The Naira Rule",
+        "body": "Prices are set in Playfair, but Playfair Display genuinely ships no U+20A6 — measured: its ₦ advance width is byte-identical to the Georgia fallback's while other glyphs differ, which is the fallback answering, not the face. So the Price component sets the sign alone in Inter at 0.95em, weight 400, tracking −0.02em, with a 0.06em right margin, and the figures in the parent's Playfair with tabular-nums on the whole span. The 0.95em is an optical match, not a guess: it lines Inter's cap height (0.727em) up with Playfair's (~0.70em), and the negative tracking closes the gap the substitution opens. Never render a price without it, and never let the sign drift to a different size to \"look bigger\" — it is sized to disappear.",
+        "section": "typography"
+      },
+      {
+        "name": "The Balanced Heading Rule",
+        "body": "Every display and headline gets text-balance; numbers in counts, quantities and totals get tabular-nums.",
+        "section": "typography"
+      },
+      {
+        "name": "The Press Removes the Shadow Rule",
+        "body": "Every shadowed button drops its shadow and moves down 1px on :active. Disabled buttons have no shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Ring Not Shadow Rule",
+        "body": "Images and cards are outlined by a 1px line/70 ring at rest and an accent/60 ring on hover; they never carry a shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Height Exception Rule",
+        "body": "transition: height is animated in exactly one place: .checkout-body, because the four cards differ in height and without it the sheet snaps between steps. It fires at most three times per checkout on one container, which is what keeps its layout cost bounded, and the alternatives (a fixed height to the tallest card, or a hard snap) both read worse. This is a licence for that container, not a precedent: nothing else in the build transitions a layout property, and a second one needs the same argument made again. - **Theme cross-fade:** 400ms on body (background, colour), the shop wrapper (background, colour), the retail and wholesale headers (background, border) and the catalogue filter bar (background, border). Section-tab colour also fades over 400ms; its rule grows over 500ms. - **Control states:** 300ms on background, border, colour, shadow and transform for buttons, pills, selects, swatches and thumbnails. - **Image hover:** card ring 500ms; card image to 1.04 over 1200ms; wholesale tile to 1.02 over 700ms. - **Gate entrance:** masthead rises 14px → 0 over 900ms, tagline the same with a 140ms delay; each photo settles from scale 1.08 over 1500ms with 220/360ms delays; each band rises over 900ms with 520/660ms delays. All use animation-fill-mode: backwards. - **Checkout entrance:** the scrim fades over 400ms; the sheet rises from translateY(100%) over 550ms on mobile and fades-and-settles (12px up, scale 0.985) over 450ms from sm. Closing is faster and eased in: 320ms down / 260ms out, over a 300ms scrim fade. - **Step change:** the card track translates over 450ms, the outgoing card fades over 350ms, the body height eases over 450ms, the trail rule scales over 500ms, and focus lands at 460ms — after the slide settles. - **Recognition cascade:** a 900ms accent-soft → transparent wash per field, staggered --fill-step × 70ms, backwards, five fields deep. - **Copy feedback:** the account number crosses to accent over 500ms, the pill over 300ms, and both hold for 2s. - **Success:** the disc scales in over 500ms, then the check draws over 600ms after a 200ms beat. - **Drag to dismiss:** while the finger is down there is no transition at all; release either closes or springs back over 400ms. - **Reduced motion:** under prefers-reduced-motion: reduce every transition and animation duration collapses to 0.01ms with zero delay and a single iteration, and the gate doors keep flex-grow 1.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do style every new element through the fourteen semantic tokens; adding a room means adding a [data-theme] block, never a component branch.",
+      "Do keep accent at the client's exact signature value and route AA fixes through cta (Kids: sage stays exact, the button is the darkened sage).",
+      "Do list the sections Men, Women, Kids, in that order, everywhere they appear.",
+      "Do render every price through <Price>: ₦ in Inter, numerals in Playfair, tabular.",
+      "Do put shadows only on pressable or floating elements, from the seven-value vocabulary, and drop them on press and when disabled.",
+      "Do outline images with a 1px line/70 ring and move it to accent/60 on hover.",
+      "Do use ease-out-expo for every transition, 400ms for theme changes, 300ms for control states, 700–1200ms for image zooms.",
+      "Do honour prefers-reduced-motion by collapsing durations, not by removing the elements.",
+      "Do underline every field inside the checkout sheet — 1px line, accent plus a 1px accent box-shadow on focus, danger when invalid — and keep the bank account card as the flow's only boxed surface.",
+      "Do set placeholders at the full muted token with opacity: 1, and key an unchosen <select>'s muted colour to data-empty=\"true\" so it outranks .field select.",
+      "Do keep danger to validation: invalid underlines, invalid labels, error lines and failure messages.",
+      "Do give a modal overlay the full set: Tab trap, focus into each step, focus restored to its opener, Escape, body-scroll lock, inert on inactive panels."
+    ],
+    "donts": [
+      "Don't set tracked uppercase anywhere except the section switcher (0.18em) and the masthead tagline (0.42em).",
+      "Don't set controls, labels or metadata in Playfair; Playfair is for the masthead, section and product titles, ledes, door words and prices.",
+      "Don't use neutral grey for surface or line; every room's hairlines and fills are tints of its own ground.",
+      "Don't place text on a photograph without the solid ground band; no gradient scrims.",
+      "Don't put a full size or inventory matrix on a product card; the summary is \"n colours · S – XL\".",
+      "Don't mix icon sets or use emoji; icons come from icons.jsx at 1.5 stroke.",
+      "Don't animate anything other than transform, opacity, the colour cross-fade and the one licensed .checkout-body height; no parallax, canvas, scroll effects or animated gradients.",
+      "Don't mark progress with numbered circles, a connecting rail, a progress bar or an \"n of 4\" count. The four-word trail with a rule under the current word is the whole indicator.",
+      "Don't box a field inside the checkout sheet, and don't fill an underlined field — the underline is the field. Boxed inputs stay where they already are: quantity, stepper, search.",
+      "Don't spend danger on anything decorative — no danger badges, danger fills, danger hovers or danger emphasis.",
+      "Don't let the naira sign be resized, re-weighted or reset in Playfair; it is an Inter graft at 0.95em sized to vanish beside the figures.",
+      "Don't let the fullscreen viewer or dialog scrims take theme colour; they are the two literal scrims."
+    ]
+  }
+}

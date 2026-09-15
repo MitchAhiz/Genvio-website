@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "src/index.css"
+        ],
+        "createdAt": "2026-09-11T17:13:57.743Z",
+        "reason": "user confirmed: deliberate bounded height transition on .checkout-body so the sheet resizes between four cards of differing height instead of snapping; commented in source, disclosed to and shipped by the finish reviewer, canonized in DESIGN.md as The One Height Exception Rule"
+      }
+    ]
+  }
+}
