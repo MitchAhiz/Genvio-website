@@ -3,7 +3,11 @@ const {
   getWholesaleImages,
   getWholesaleCategories,
   addWholesaleImage,
+  updateWholesaleImage,
   deleteWholesaleImage,
+  reorderWholesaleImages,
+  renameWholesaleCategory,
+  deleteWholesaleCategory,
 } = require('../services/wholesale')
 const { requireAdminAuth } = require('../middleware/auth')
 
@@ -46,6 +50,64 @@ router.delete('/wholesale/:id', requireAdminAuth, async (req, res, next) => {
   try {
     const result = await deleteWholesaleImage(req.params.id)
     if (!result.ok) return res.status(404).json({ error: result.error })
+    res.json({ deleted: true })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// Registered before /wholesale/:id so "reorder" isn't captured as an id.
+router.patch('/wholesale/reorder', requireAdminAuth, async (req, res, next) => {
+  try {
+    const { orderedIds } = req.body
+    const result = await reorderWholesaleImages(orderedIds)
+    if (!result.ok) return res.status(400).json({ error: result.error })
+    res.json({ reordered: true })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.patch('/wholesale/:id', requireAdminAuth, async (req, res, next) => {
+  try {
+    const { url, caption, category } = req.body
+    if (url !== undefined && (typeof url !== 'string' || !/^https?:\/\//i.test(url.trim()))) {
+      return res.status(400).json({ error: 'Image URL must start with http:// or https://' })
+    }
+    const result = await updateWholesaleImage(req.params.id, {
+      url: url !== undefined ? url.trim() : undefined,
+      caption,
+      category,
+    })
+    if (!result.ok) return res.status(404).json({ error: result.error })
+    res.json(result.image)
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.patch('/wholesale/categories/:name', requireAdminAuth, async (req, res, next) => {
+  try {
+    const { name } = req.body
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'name is required' })
+    }
+    const result = await renameWholesaleCategory(req.params.name, name)
+    if (!result.ok) return res.status(404).json({ error: result.error })
+    res.json({ renamed: true })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.delete('/wholesale/categories/:name', requireAdminAuth, async (req, res, next) => {
+  try {
+    const { action, reassignTo } = req.body || {}
+    const result = await deleteWholesaleCategory(req.params.name, { action, reassignTo })
+    if (!result.ok) {
+      const status = result.error === 'Category not found' ? 404 : 400
+      return res.status(status).json({ error: result.error })
+    }
     res.json({ deleted: true })
   } catch (err) {
     next(err)

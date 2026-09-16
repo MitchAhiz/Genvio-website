@@ -58,3 +58,16 @@ export const getRevenueAnalytics = (period) => get('/api/analytics/revenue', { p
 export const getOrdersBySection = (period) => get('/api/analytics/orders-by-section', { period })
 export const getStatusBreakdown = () => get('/api/analytics/status-breakdown')
 export const getBestSellers = (sort, limit) => get('/api/analytics/best-sellers', { sort, limit })
+
+// --- Wholesale ---
+
+export const getWholesaleImagesAdmin = () => get('/api/wholesale')
+export const getWholesaleCategoriesAdmin = () => get('/api/wholesale/categories')
+export const createWholesaleImage = (data) => post('/api/wholesale', data)
+export const updateWholesaleImage = (id, data) => patch(`/api/wholesale/${id}`, data)
+export const deleteWholesaleImage = (id) => del(`/api/wholesale/${id}`)
+export const reorderWholesaleImages = (orderedIds) => patch('/api/wholesale/reorder', { orderedIds })
+export const renameWholesaleCategory = (name, newName) =>
+  patch(`/api/wholesale/categories/${encodeURIComponent(name)}`, { name: newName })
+export const deleteWholesaleCategory = (name, action, reassignTo) =>
+  del(`/api/wholesale/categories/${encodeURIComponent(name)}`, { action, reassignTo })
