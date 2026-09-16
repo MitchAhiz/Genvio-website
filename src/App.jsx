@@ -10,6 +10,11 @@ import ProductPage from './pages/ProductPage'
 import BagPage from './pages/BagPage'
 import WholesalePage from './pages/WholesalePage'
 import AdminPage from './pages/AdminPage'
+import AdminProducts from './pages/admin/AdminProducts'
+import AdminOrders from './pages/admin/AdminOrders'
+import AdminAnalytics from './pages/admin/AdminAnalytics'
+import AdminWholesale from './pages/admin/AdminWholesale'
+import AdminSettings from './pages/admin/AdminSettings'
 
 // Old /product/:slug links (shared on WhatsApp before the restructure) resolve
 // to the product's own section.
@@ -41,7 +46,14 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/wholesale" element={<WholesalePage />} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin" element={<AdminPage />}>
+          <Route index element={<Navigate to="/admin/products" replace />} />
+          <Route path="products" element={<AdminProducts />} />
+          <Route path="orders" element={<AdminOrders />} />
+          <Route path="analytics" element={<AdminAnalytics />} />
+          <Route path="wholesale" element={<AdminWholesale />} />
+          <Route path="settings" element={<AdminSettings />} />
+        </Route>
 
         <Route path="/shop" element={<ShopLayout />}>
           <Route index element={<ShopIndexRedirect />} />
