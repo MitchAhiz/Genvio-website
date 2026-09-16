@@ -42,3 +42,12 @@ export const createSubcategory = (name, section) => post('/api/subcategories', {
 export const updateSubcategory = (id, name) => patch(`/api/subcategories/${id}`, { name })
 export const deleteSubcategory = (id, action, reassignTo) => del(`/api/subcategories/${id}`, { action, reassignTo })
 export const getSubcategoryProductCount = (id) => get(`/api/subcategories/${id}/product-count`)
+
+// --- Orders ---
+
+// No admin listing filters/pagination exist server-side yet — full list is
+// fetched and filtered client-side, matching the task's accepted approach
+// at current order volumes.
+export const getOrders = () => get('/api/orders')
+export const updateOrderStatus = (id, status) => patch(`/api/orders/${id}`, { status })
+export const updateOrderNotes = (id, notes) => patch(`/api/orders/${id}/notes`, { notes })

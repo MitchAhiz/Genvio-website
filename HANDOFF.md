@@ -30,7 +30,9 @@ before writing any code.**
 | 04 | Activity log + analytics API | ✅ Done and verified — see Section 14 below |
 | 05 | Order notes + site config write API | ✅ Done and verified — see Section 15 below |
 | 06 | Admin shell & shared components | ✅ Done — shell verified live; OTP end-to-end gap flagged — see Section 16 below |
-| 07+ | Products tab onward | Not started |
+| 07 | Products tab | ✅ Done and verified — see Section 17 below |
+| 08 | Orders tab | ✅ Done and verified — see Section 18 below |
+| 09+ | Analytics tab onward | Not started |
 
 ---
 
@@ -710,5 +712,77 @@ and the unauthenticated-401 path was independently confirmed. The
 
 ---
 
-*End of handoff. Proceed to `00-INDEX.md` for the task list, starting
-with `TASK-01-database-schema.md`.*
+## 17. Task 07 — Products Tab (Complete & Verified)
+
+Built `AdminProducts.jsx` (table with section filters, debounced search,
+bulk select/actions, collapsible low-stock panel, inline name/price
+editing, status toggle with confirm-only-on-unpublish), `ProductModal.jsx`
+(two-phase add/edit modal — basic info → draft → full editor — with
+variants, per-variant sizes, image add/reorder/delete), and
+`SubcategoryDrawer.jsx` (add/rename/delete per section, reassign-or-
+unpublish choice when deleting a subcategory that has products).
+
+**Backend additions beyond the original task scope** (the original
+products API was missing them):
+- `POST /api/products/bulk`
+- `POST /api/products/:id/unpublish`
+- `PATCH /api/products/:id/images/reorder`
+- `PATCH /api/products/:id` extended to accept `subcategoryId`/`status`
+
+**Known gap:** no real image-upload backend exists (no multer/S3/
+Cloudinary) — the "image upload" field in `ProductModal.jsx` is a
+URL-paste input, not a file picker. Matches the existing `addImages`
+contract but isn't true file upload.
+
+**Verified:** 17/17 automated checks against live Supabase (bulk
+actions, unpublish, subcategory assignment, image reorder, variant/size
+CRUD) plus manual browser testing (section filters, inline edit, edit
+modal, subcategory drawer). `vite build` passes clean.
+
+---
+
+## 18. Task 08 — Orders Tab (Complete & Verified)
+
+Built `AdminOrders.jsx` (summary cards for today/week/month/pending/
+confirmed, status + date-range + search filters, table with inline
+status dropdown) and `OrderDetailDrawer.jsx` (item list, customer +
+address, payment method, status, internal notes with save). Extended
+`src/api/admin.js` with `getOrders`, `updateOrderStatus`,
+`updateOrderNotes`.
+
+**Deviations from the task spec's sketch, confirmed against the real
+codebase:**
+- Status update uses the real endpoint `PATCH /api/orders/:id` (body
+  `{ status }`), not `PATCH /api/orders/:id/status` as the spec sketched.
+- Real status enum: `pending_payment · confirmed · processing · shipped
+  · delivered`.
+- No order listing/summary endpoint exists. Summary cards and all
+  filtering (status, date range, search) are computed client-side from
+  the full order list — explicitly allowed by the spec at current order
+  volumes, but **any future task assuming a `/api/orders/summary` or a
+  paginated listing endpoint should check this section first** rather
+  than assume one was added.
+- No server-side phone masking — done client-side in the table only.
+  Search matches against unmasked digits, not the masked display string.
+- No status-history table — the drawer shows current status + last-
+  updated timestamp only, not a full change log. Flagged as a fallback
+  per the spec, not silently built around.
+
+**Verified live:** production build passes clean; a throwaway script
+exercised the full order lifecycle directly against the live Supabase DB
+(create → list → status update → notes update), confirming field shapes
+match what the components expect; a full browser walkthrough via real
+OTP login covered table rendering, the detail drawer, notes save with
+toast, Escape-to-close, the inline status dropdown (summary cards
+recalculate live), search by phone digits, search by reference, the
+status filter, and the date-range filter. One real bug was found and
+fixed during this testing: a non-numeric search term (e.g. `"zzz"`)
+matched every order, because stripping non-digits from the query
+produced an empty string and `"".includes()` is always true — fixed in
+`AdminOrders.jsx`'s filter logic. All test data and temp scripts were
+cleaned up afterward.
+
+---
+
+*End of handoff. Proceed to `00-INDEX.md` for the task list, next up
+`TASK-09-admin-analytics-tab.md`.*
