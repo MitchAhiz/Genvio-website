@@ -865,23 +865,42 @@ verification snapshot was timed, not a caching or fetch-ordering bug.
 would mean giving `RowSkeleton` accessible loading text, not touching
 the fetch logic.
 
-**OTP codes are logged in production, not just dev — flagged, not
-fixed (out of scope for Task 09):** `server/src/services/auth.js`'s
-`sendOtpEmail` has a `console.log('[DEV] OTP for...')` line that is
-correctly gated behind "no `BREVO_API_KEY` configured," but the
-**Brevo send path itself is not gated by `NODE_ENV`** — every call logs
-`console.log('[BREVO] Request payload:', ...)`, and that payload
-includes `subject: \`Your login code: ${code}\``. In other words, the
-6-digit OTP is written to stdout/server logs on every real send,
-in production exactly as in dev, because the email subject carries the
-code and the whole payload gets logged before sending. Confirmed by
-reading `server/src/routes/auth.js` and `server/src/services/auth.js`
-directly — there is no `NODE_ENV !== 'production'` guard anywhere in
-that log statement. **This is a real finding, not addressed here**
-since it's unrelated to the Analytics tab's scope — whoever picks up
-Task 10 (or a dedicated fix) should either drop the code from the
-logged subject line or gate the whole `[BREVO]` log block behind a
-dev-only check.
+**OTP codes were logged in production, not just dev — found during
+Task 09 review, fixed in a separate standalone commit (unrelated to
+the Analytics tab's scope):** `server/src/services/auth.js`'s
+`sendOtpEmail` has a `console.log('[DEV] OTP for...')` line that was
+already correctly gated behind "no `BREVO_API_KEY` configured," but
+the **Brevo send path itself had no `NODE_ENV` guard** — every real
+send logged `console.log('[BREVO] Request payload:', ...)`, and that
+payload included `subject: \`Your login code: ${code}\``. The 6-digit
+OTP was written to stdout/server logs on every real send in
+production, because the email subject carries the code and the whole
+payload was logged before sending.
+
+**Fix:** the logged payload's `subject` field is now hardcoded to
+`'Your login code: [REDACTED]'` instead of the real `payload.subject`
+— the actual object sent to Brevo (`payload`, used in the `fetch` call)
+is untouched, so the real email still carries the real code. One-line
+change, no `NODE_ENV` branching needed since the log line simply never
+carries the sensitive value now.
+
+**Verified:** started a clean server instance and drove the real flow
+three ways — (1) `POST /api/auth/request-otp` over HTTP against the
+live Brevo API (200 OK, Brevo `201 Created` with a real `messageId`
+each time); (2) `sendOtpEmail`/`verifyOtp` called directly in the same
+process, generating a real code, sending it via a real Brevo network
+call, then verifying that exact code (`{ ok: true }`) and confirming a
+wrong code is rejected (`{ ok: false }`); (3) a full HTTP-level login —
+sent a real OTP, retrieved the code from Brevo's own delivery-event
+API (`GET /v3/smtp/statistics/events`, matched by timestamp to the
+specific send — this is Brevo's infrastructure, not our server's logs,
+so reading it doesn't reintroduce the leak) and POSTed it to the real
+`/api/auth/verify-otp` endpoint, which returned `200 { success: true }`
+with a session cookie set. Across all of this, the server's own
+captured log output was grepped for any 6-digit sequence matching a
+generated code — none were found; every `[BREVO]` log line showed the
+redacted subject. Login works end-to-end and the code no longer
+appears anywhere in server logs.
 
 ---
 

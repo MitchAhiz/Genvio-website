@@ -69,7 +69,8 @@ async function sendOtpEmail(email, code) {
       </div>
     `,
   }
-  console.log('[BREVO] Request payload:', JSON.stringify({ sender: payload.sender, to: payload.to, subject: payload.subject }, null, 2))
+  // Never log the subject as-is — it embeds the OTP code in plain text.
+  console.log('[BREVO] Request payload:', JSON.stringify({ sender: payload.sender, to: payload.to, subject: 'Your login code: [REDACTED]' }, null, 2))
 
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
