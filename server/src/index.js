@@ -9,6 +9,9 @@ const wholesaleRoutes = require('./routes/wholesale')
 const customerRoutes = require('./routes/customers')
 const orderRoutes = require('./routes/orders')
 const configRoutes = require('./routes/config')
+const subcategoryRoutes = require('./routes/subcategories')
+const activityRoutes = require('./routes/activity')
+const analyticsRoutes = require('./routes/analytics')
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -36,6 +39,9 @@ app.use('/api', wholesaleRoutes)
 app.use('/api', customerRoutes)
 app.use('/api', orderRoutes)
 app.use('/api', configRoutes)
+app.use('/api', subcategoryRoutes)
+app.use('/api', activityRoutes)
+app.use('/api', analyticsRoutes)
 
 app.use((err, _req, res, _next) => {
   console.error(err.stack)

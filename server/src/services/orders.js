@@ -105,11 +105,23 @@ async function updateOrderDelivery(id, reference, { name, address }) {
   return { ok: true, order }
 }
 
+async function updateOrderNotes(id, notes) {
+  const existing = await prisma.order.findUnique({ where: { id } })
+  if (!existing) return { ok: false, error: 'Order not found' }
+  const order = await prisma.order.update({
+    where: { id },
+    data: { notes },
+    include: orderWithCustomer,
+  })
+  return { ok: true, order }
+}
+
 module.exports = {
   ORDER_STATUSES,
   createOrder,
   listOrders,
   updateOrderStatus,
   updateOrderDelivery,
+  updateOrderNotes,
   orderProvesPhone,
 }
