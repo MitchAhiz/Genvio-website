@@ -8,18 +8,20 @@ datasource db {
 }
 
 model Product {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
-  brand     String
-  category  String
-  price     Int
-  section   String   @default("women")
-  status    String   @default("draft")
-  createdAt DateTime @default(now()) @map("created_at")
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  brand         String
+  category      String
+  price         Int
+  section       String   @default("women")
+  status        String   @default("draft")
+  subcategoryId String?  @map("subcategory_id")
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  images   ProductImage[]
-  variants ProductVariant[]
+  images      ProductImage[]
+  variants    ProductVariant[]
+  subcategory Subcategory?     @relation(fields: [subcategoryId], references: [id])
 
   @@index([section, status])
   @@map("products")
@@ -56,6 +58,7 @@ model Order {
   total         Int
   status        String   @default("pending_payment")
   paymentMethod String   @default("bank_transfer") @map("payment_method")
+  notes         String?  @db.Text
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -108,4 +111,45 @@ model VariantSize {
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@map("variant_sizes")
+}
+
+model SiteConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_config")
+}
+
+model Subcategory {
+  id        String   @id @default(cuid())
+  name      String
+  section   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  products Product[]
+
+  @@map("subcategories")
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  detail     Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("activity_log")
+}
+
+model ConfigChangeHistory {
+  id        String   @id @default(cuid())
+  key       String
+  oldValue  String?  @map("old_value")
+  newValue  String   @map("new_value")
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  @@map("config_change_history")
 }
