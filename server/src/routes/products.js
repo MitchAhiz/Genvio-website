@@ -82,15 +82,15 @@ router.get('/inventory/:productId', async (req, res, next) => {
 
 router.post('/products', requireAdminAuth, async (req, res, next) => {
   try {
-    const { slug, name, brand, category, price, section } = req.body
-    if (!slug || !name || !brand || !category || price == null) {
-      return res.status(400).json({ error: 'Missing required fields: slug, name, brand, category, price' })
+    const { slug, name, brand, categoryId, price, section } = req.body
+    if (!slug || !name || !brand || !categoryId || price == null) {
+      return res.status(400).json({ error: 'Missing required fields: slug, name, brand, categoryId, price' })
     }
     if (typeof price !== 'number' || price <= 0) {
       return res.status(400).json({ error: 'Price must be a positive number' })
     }
     if (section !== undefined && !isValidSection(section)) return sectionError(res)
-    const product = await createProduct({ slug, name, brand, category, price, section })
+    const product = await createProduct({ slug, name, brand, categoryId, price, section })
     res.status(201).json(product)
   } catch (err) {
     next(err)
@@ -102,7 +102,7 @@ router.patch('/products/:id', requireAdminAuth, async (req, res, next) => {
     const existing = await getProductById(req.params.id)
     if (!existing) return res.status(404).json({ error: 'Product not found' })
 
-    const { name, brand, category, price, section, subcategoryId, status, variants } = req.body
+    const { name, brand, price, section, categoryId, status, variants } = req.body
     if (price !== undefined && (typeof price !== 'number' || price <= 0)) {
       return res.status(400).json({ error: 'Price must be a positive number' })
     }
@@ -110,7 +110,7 @@ router.patch('/products/:id', requireAdminAuth, async (req, res, next) => {
     if (status !== undefined && status !== 'draft' && status !== 'published') {
       return res.status(400).json({ error: 'status must be "draft" or "published"' })
     }
-    const result = await updateProduct(req.params.id, { name, brand, category, price, section, subcategoryId, status, variants })
+    const result = await updateProduct(req.params.id, { name, brand, price, section, categoryId, status, variants })
     if (!result.ok) return res.status(400).json({ error: result.error })
     res.json(result.product)
   } catch (err) {

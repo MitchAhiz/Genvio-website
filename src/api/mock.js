@@ -8,7 +8,7 @@ const days = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString()
 const PRODUCTS = [
   {
     id: 'm1', slug: 'unstructured-linen-blazer', name: 'Unstructured Linen Blazer', brand: 'Maison Noir',
-    category: 'Tailoring', section: 'men', price: 68000, status: 'published', createdAt: days(2),
+    category: { name: 'Tailoring' }, section: 'men', price: 68000, status: 'published', createdAt: days(2),
     images: [{ id: 'm1a', url: img('1617137968427-85924c800a22'), sortOrder: 0 }],
     variants: [
       { id: 'm1v1', colour: 'Navy', hex: '#1F2A44', imageUrl: null, sizes: sizes({ S: 4, M: 6, L: 5, XL: 2 }) },
@@ -16,13 +16,13 @@ const PRODUCTS = [
     ],
   },
   {
-    id: 'm2', slug: 'brushed-cotton-crew', name: 'Brushed Cotton Crew', brand: 'Genvio', category: 'Knitwear',
+    id: 'm2', slug: 'brushed-cotton-crew', name: 'Brushed Cotton Crew', brand: 'Genvio', category: { name: 'Knitwear' },
     section: 'men', price: 24500, status: 'published', createdAt: days(20),
     images: [{ id: 'm2a', url: img('1516826957135-700dedea698c'), sortOrder: 0 }],
     variants: [{ id: 'm2v1', colour: 'Dusty Pink', hex: '#E8C4C4', imageUrl: null, sizes: sizes({ S: 3, M: 8, L: 6 }) }],
   },
   {
-    id: 'm3', slug: 'washed-denim-five-pack', name: 'Washed Denim, Five Fits', brand: 'Atelier 9', category: 'Denim',
+    id: 'm3', slug: 'washed-denim-five-pack', name: 'Washed Denim, Five Fits', brand: 'Atelier 9', category: { name: 'Denim' },
     section: 'men', price: 31000, status: 'published', createdAt: days(40),
     images: [{ id: 'm3a', url: img('1604176354204-9268737828e4'), sortOrder: 0 }],
     variants: [
@@ -31,13 +31,13 @@ const PRODUCTS = [
     ],
   },
   {
-    id: 'm4', slug: 'bomber-in-black', name: 'Bomber in Black', brand: 'Maison Noir', category: 'Outerwear',
+    id: 'm4', slug: 'bomber-in-black', name: 'Bomber in Black', brand: 'Maison Noir', category: { name: 'Outerwear' },
     section: 'men', price: 54000, status: 'published', createdAt: days(3),
     images: [{ id: 'm4a', url: img('1488161628813-04466f872be2'), sortOrder: 0 }],
     variants: [{ id: 'm4v1', colour: 'Black', hex: '#171717', imageUrl: null, sizes: sizes({ M: 3, L: 4, XL: 2 }) }],
   },
   {
-    id: 'w1', slug: 'silk-wrap-blouse', name: 'Silk Wrap Blouse', brand: 'Maison Noir', category: 'Tops',
+    id: 'w1', slug: 'silk-wrap-blouse', name: 'Silk Wrap Blouse', brand: 'Maison Noir', category: { name: 'Tops' },
     section: 'women', price: 18500, status: 'published', createdAt: days(1),
     images: [{ id: 'w1a', url: img('1485968579580-b6d095142e6e'), sortOrder: 0 }, { id: 'w1b', url: img('1509631179647-0177331693ae'), sortOrder: 1 }],
     variants: [
@@ -46,19 +46,19 @@ const PRODUCTS = [
     ],
   },
   {
-    id: 'w2', slug: 'pleated-midi-skirt', name: 'Pleated Midi Skirt', brand: 'Genvio', category: 'Skirts',
+    id: 'w2', slug: 'pleated-midi-skirt', name: 'Pleated Midi Skirt', brand: 'Genvio', category: { name: 'Skirts' },
     section: 'women', price: 27000, status: 'published', createdAt: days(12),
     images: [{ id: 'w2a', url: img('1509631179647-0177331693ae'), sortOrder: 0 }],
     variants: [{ id: 'w2v1', colour: 'Plum', hex: '#3B1F35', imageUrl: null, sizes: sizes({ S: 4, M: 7, L: 3 }) }],
   },
   {
-    id: 'w3', slug: 'knit-wrap-cardigan', name: 'Knit Wrap Cardigan', brand: 'Atelier 9', category: 'Knitwear',
+    id: 'w3', slug: 'knit-wrap-cardigan', name: 'Knit Wrap Cardigan', brand: 'Atelier 9', category: { name: 'Knitwear' },
     section: 'women', price: 32500, status: 'published', createdAt: days(30),
     images: [{ id: 'w3a', url: img('1558769132-cb1aea458c5e'), sortOrder: 0 }],
     variants: [{ id: 'w3v1', colour: 'Oat', hex: '#D9CDB8', imageUrl: null, sizes: sizes({ XS: 2, S: 2, M: 4, L: 2 }) }],
   },
   {
-    id: 'k1', slug: 'everyday-sweatshirt-set', name: 'Everyday Sweatshirt Set', brand: 'Genvio Kids', category: 'Sets',
+    id: 'k1', slug: 'everyday-sweatshirt-set', name: 'Everyday Sweatshirt Set', brand: 'Genvio Kids', category: { name: 'Sets' },
     section: 'kids', price: 12500, status: 'published', createdAt: days(4),
     images: [{ id: 'k1a', url: img('1620799140408-edc6dcb6d633'), sortOrder: 0 }],
     variants: [
@@ -67,7 +67,7 @@ const PRODUCTS = [
     ],
   },
   {
-    id: 'k2', slug: 'party-dress-in-gold', name: 'Party Dress in Gold', brand: 'Atelier 9', category: 'Occasion',
+    id: 'k2', slug: 'party-dress-in-gold', name: 'Party Dress in Gold', brand: 'Atelier 9', category: { name: 'Occasion' },
     section: 'kids', price: 16000, status: 'published', createdAt: days(9),
     images: [{ id: 'k2a', url: img('1520006403909-838d6b92c22e'), sortOrder: 0 }],
     variants: [{ id: 'k2v1', colour: 'Gold', hex: '#F3D9A4', imageUrl: null, sizes: sizes({ '4-5Y': 5, '6-7Y': 6, '8-9Y': 4 }) }],
@@ -223,7 +223,7 @@ export function mockFetch(path, options = {}) {
   if (p === '/api/products') {
     let list = published
     if (q.get('section')) list = list.filter((x) => x.section === q.get('section'))
-    if (q.get('category')) list = list.filter((x) => x.category === q.get('category'))
+    if (q.get('category')) list = list.filter((x) => x.category.name === q.get('category'))
     return list
   }
   if (p.startsWith('/api/products/')) {
@@ -235,7 +235,7 @@ export function mockFetch(path, options = {}) {
   if (p === '/api/categories') {
     let list = published
     if (q.get('section')) list = list.filter((x) => x.section === q.get('section'))
-    return [...new Set(list.map((x) => x.category))].sort()
+    return [...new Set(list.map((x) => x.category.name))].sort()
   }
   if (p === '/api/wholesale') {
     return q.get('category') ? WHOLESALE.filter((x) => x.category === q.get('category')) : WHOLESALE

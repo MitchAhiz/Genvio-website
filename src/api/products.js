@@ -6,7 +6,7 @@ function transformProduct(p) {
     slug: p.slug,
     name: p.name,
     brand: p.brand,
-    category: p.category,
+    category: p.category?.name || '',
     section: p.section || 'women',
     price: p.price,
     isNew: Date.now() - new Date(p.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,

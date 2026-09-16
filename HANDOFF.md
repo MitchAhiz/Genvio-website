@@ -24,7 +24,7 @@ before writing any code.**
 
 | # | Task | Status |
 |---|------|--------|
-| 01 | Database schema | ✅ Done — `Subcategory` and `ActivityLog` models exist in `server/prisma/schema.prisma` |
+| 01 | Database schema | ✅ Done — `ActivityLog` model exists in `server/prisma/schema.prisma`; the original `Subcategory` model was renamed to `Category` and repurposed as the products taxonomy — see final section below |
 | 02 | Backend utilities (logActivity, config service, payment endpoint) | ✅ Done — `server/src/utils/logActivity.js`, `server/src/services/configService.js` exist |
 | 03 | Sub-categories API | ✅ Done and verified — see Section 13 below |
 | 04 | Activity log + analytics API | ✅ Done and verified — see Section 14 below |
@@ -901,6 +901,96 @@ captured log output was grepped for any 6-digit sequence matching a
 generated code — none were found; every `[BREVO]` log line showed the
 redacted subject. Login works end-to-end and the code no longer
 appears anywhere in server logs.
+
+---
+
+## 20. Products Taxonomy Change — Category replaces free-text Category + Sub-category
+
+Reworked how products are categorized. Previously: `Product.category` was a
+free-text `String` column (no validation, admin could type anything), plus a
+separate normalized `Subcategory` table (id/name/section) with its own
+management drawer, wired to `Product.subcategoryId`.
+
+**New model:** the `Subcategory` table was **renamed** to `Category` (same
+shape: `id, name, section, createdAt` — a per-section, admin-curated lookup
+table) rather than building a parallel model, since it already had exactly
+the right shape and its reassign-or-unpublish delete logic could be reused
+as-is. `Product.category` (free text) was dropped; `Product.subcategoryId`
+was renamed to `Product.categoryId`, still a nullable FK, now pointing at
+`Category`. Migration:
+`server/prisma/migrations/20260916090000_rename_subcategory_to_category/`.
+No real product data existed at the time of this change (only a disposable
+test-seed script's throwaway rows), so this was a clean rename, not a
+data migration.
+
+**Backend:**
+- `server/src/services/subcategoryService.js` → `categoryService.js`
+  (`getCategories`, `createCategory`, `renameCategory`, `deleteCategory`,
+  `getProductCount` — same reassign-or-unpublish delete semantics as before).
+- `server/src/routes/subcategories.js` → `routes/categories.js`, mounted at
+  `/api/admin/categories/*` (moved off the bare `/api/subcategories` prefix
+  to avoid colliding with the pre-existing **public** `GET /api/categories`
+  storefront route in `routes/products.js`, which is unrelated admin-facing
+  vs. customer-facing surface).
+- `server/src/services/products.js` / `routes/products.js`: `createProduct`/
+  `updateProduct` now take `categoryId` instead of free-text `category`;
+  `getCategories({section})` (the public, storefront-facing function) now
+  derives its distinct name list from the `Category` relation on published
+  products instead of `distinct` on the old string column — same contract
+  (`GET /api/categories` still returns an array of name strings), same
+  section-scoping, same "only categories currently in use" behaviour.
+
+**Admin UI (`src/components/admin/ProductModal.jsx`):** the free-text
+Category input and the separate Sub-category `<select>` are gone, replaced
+by one Category `<select>` scoped to whichever Section is currently chosen
+(re-fetched on section change, and reset when the section changes — a
+category picked for Men has no meaning under Women/Kids). Reuses the
+inline "New category…" sentinel pattern from Wholesale's
+`WholesaleImageModal.jsx` (`NEW_CATEGORY_VALUE = '__new__'`, a conditional
+text input) with one necessary difference: because Category is a real
+normalized table here (unlike Wholesale's plain-string category), picking
+"New category…" calls `POST /api/admin/categories` to actually create the
+row and get a real id *before* the product is saved with that `categoryId`
+— Wholesale's fully-implicit "just save the string" trick doesn't apply to
+a foreign-key relation.
+
+**`SubcategoryDrawer.jsx` → `CategoryDrawer.jsx`:** same drawer, same
+add/rename/delete-with-reassign-or-unpublish UI, terminology and API calls
+updated. `AdminProducts.jsx` updated to import it, its "Manage
+Sub-categories" button relabelled "Manage Categories", and its
+list/table rows read `product.category?.name` instead of
+`product.subcategory?.name`.
+
+**Storefront (not originally in scope, added after investigation showed
+free-text `category` — not `subcategory` — backs live customer-facing
+filtering):** `src/api/products.js`'s `transformProduct` now reads
+`p.category?.name` off the relation instead of a plain string, so
+`CategoryPills.jsx`, `CataloguePage.jsx`'s client-side category filter, and
+`SearchOverlay.jsx`'s search-by-category all keep working unchanged — they
+only ever consumed a category name string, which is still what they get.
+`src/api/mock.js`'s dev fixtures (`VITE_MOCK_API=1`) updated to match the
+same `{ category: { name } }` shape.
+
+`server/scripts/seed-and-test-analytics.js` (Task 04's disposable
+verification script, re-run occasionally) updated to create real
+`Category` rows and use `categoryId` instead of the old free-text/
+`Subcategory` shapes, so it still runs correctly.
+
+**Not touched, confirmed out of scope by investigation:** Orders (denormalized
+JSON `items`, no category/subcategory reference at all) and Analytics
+(breaks down by section/product only) — neither ever referenced category or
+subcategory.
+
+**Outstanding — not yet run in this environment:** this sandbox has no
+network egress to the Supabase DB and `prisma generate` was blocked by a
+running dev-server process holding the client's native binary. Before this
+is live: run `npx prisma migrate deploy` (applies the rename migration)
+and `npx prisma generate` (regenerates the Prisma client against the new
+`Category` model) from a machine with DB access, with dev servers stopped.
+Then verify in the browser: Add Product with Men selected only shows Men's
+categories, switching Section clears the category choice, "New category…"
+actually creates a row and immediately selects it, and the storefront
+category pills/filter still work per section.
 
 ---
 

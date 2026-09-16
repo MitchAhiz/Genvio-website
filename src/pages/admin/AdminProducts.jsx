@@ -11,7 +11,7 @@ import ConfirmDialog from '../../components/admin/ConfirmDialog'
 import { CardSkeleton, RowSkeleton } from '../../components/admin/Skeleton'
 import { NairaAmount } from '../../utils/currency'
 import ProductModal from '../../components/admin/ProductModal'
-import SubcategoryDrawer from '../../components/admin/SubcategoryDrawer'
+import CategoryDrawer from '../../components/admin/CategoryDrawer'
 
 const SECTIONS = [
   { value: 'all', label: 'All' },
@@ -160,7 +160,7 @@ function ProductCard({ product, selected, onToggleSelect, onSaveName, onSavePric
           <InlineText value={product.name} onSave={(v) => v.trim() && onSaveName(v.trim())} className="font-medium text-slate-900" />
           <div className="mt-0.5 text-xs text-slate-400">
             <span className="capitalize">{product.section}</span>
-            {product.subcategory?.name && <span> · {product.subcategory.name}</span>}
+            {product.category?.name && <span> · {product.category.name}</span>}
           </div>
         </div>
         <button
@@ -233,7 +233,7 @@ export default function AdminProducts() {
     return products.filter((p) =>
       p.name.toLowerCase().includes(q) ||
       p.brand.toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q)
+      (p.category?.name || '').toLowerCase().includes(q)
     )
   }, [products, debouncedSearch])
 
@@ -356,7 +356,7 @@ export default function AdminProducts() {
             className="w-full max-w-xs rounded-md border border-slate-200 px-3 py-1.5 text-sm md:w-56"
           />
           <button type="button" onClick={() => setDrawerOpen(true)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
-            Manage Sub-categories
+            Manage Categories
           </button>
           <button type="button" onClick={() => setModalProduct(null)} className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800">
             Add Product
@@ -446,7 +446,7 @@ export default function AdminProducts() {
                   </td>
                   <td className="px-3 py-2 align-top text-slate-500">
                     <div className="capitalize">{p.section}</div>
-                    <div className="text-xs text-slate-400">{p.subcategory?.name || '—'}</div>
+                    <div className="text-xs text-slate-400">{p.category?.name || '—'}</div>
                   </td>
                   <td className="px-3 py-2 align-top">
                     <InlineText
@@ -484,7 +484,7 @@ export default function AdminProducts() {
         onClose={() => setModalProduct(undefined)}
         onSaved={() => load()}
       />
-      <SubcategoryDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); load() }} />
+      <CategoryDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); load() }} />
 
       <ConfirmDialog
         open={confirmBulk != null}

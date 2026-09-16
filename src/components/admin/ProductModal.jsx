@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   addProductImages,
+  createCategory,
   createProduct,
   deleteProductImage,
   deleteProductVariant,
   deleteVariantSize as deleteVariantSizeApi,
-  getSubcategories,
+  getAdminCategories,
   reorderProductImages,
   updateProduct,
 } from '../../api/admin'
@@ -21,20 +22,23 @@ const SIZE_OPTIONS = {
   kids: ['2-3Y', '4-5Y', '6-7Y'],
 }
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+const NEW_CATEGORY_VALUE = '__new__'
 
 function slugify(name) {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
 function emptyProduct() {
-  return { name: '', brand: '', category: '', price: '', section: 'women', subcategoryId: '' }
+  return { name: '', brand: '', price: '', section: 'women' }
 }
 
 export default function ProductModal({ open, product, onClose, onSaved }) {
   const { show } = useToast()
   const [form, setForm] = useState(emptyProduct())
   const [saved, setSaved] = useState(null) // full product record once it exists server-side
-  const [subcats, setSubcats] = useState([])
+  const [categories, setCategories] = useState([])
+  const [categoryChoice, setCategoryChoice] = useState('')
+  const [newCategoryName, setNewCategoryName] = useState('')
   const [saving, setSaving] = useState(false)
   const [newImageUrl, setNewImageUrl] = useState('')
   const [confirmDeleteVariant, setConfirmDeleteVariant] = useState(null)
@@ -50,15 +54,16 @@ export default function ProductModal({ open, product, onClose, onSaved }) {
       setForm({
         name: product.name,
         brand: product.brand,
-        category: product.category,
         price: String(product.price),
         section: product.section,
-        subcategoryId: product.subcategoryId || '',
       })
+      setCategoryChoice(product.categoryId || '')
     } else {
       setSaved(null)
       setForm(emptyProduct())
+      setCategoryChoice('')
     }
+    setNewCategoryName('')
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -91,7 +96,7 @@ export default function ProductModal({ open, product, onClose, onSaved }) {
 
   useEffect(() => {
     if (!open) return
-    getSubcategories(form.section).then(setSubcats).catch(() => setSubcats([]))
+    getAdminCategories(form.section).then(setCategories).catch(() => setCategories([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, form.section])
 
@@ -103,8 +108,16 @@ export default function ProductModal({ open, product, onClose, onSaved }) {
   }
 
   const validateBasics = () => {
-    if (!form.name.trim() || !form.brand.trim() || !form.category.trim()) {
-      show('Name, brand, and category are required', 'error')
+    if (!form.name.trim() || !form.brand.trim()) {
+      show('Name and brand are required', 'error')
+      return false
+    }
+    if (!categoryChoice) {
+      show('Choose or create a category', 'error')
+      return false
+    }
+    if (categoryChoice === NEW_CATEGORY_VALUE && !newCategoryName.trim()) {
+      show('Enter a name for the new category', 'error')
       return false
     }
     const price = Number(form.price)
@@ -115,23 +128,33 @@ export default function ProductModal({ open, product, onClose, onSaved }) {
     return true
   }
 
+  // Resolves the chosen category to a real id, creating it first if the
+  // admin picked "New category…" — categories are a normalized table
+  // scoped per section, unlike Wholesale's plain-string categories.
+  const resolveCategoryId = async () => {
+    if (categoryChoice !== NEW_CATEGORY_VALUE) return categoryChoice
+    const created = await createCategory(newCategoryName.trim(), form.section)
+    setCategories((prev) => [created, ...prev])
+    setCategoryChoice(created.id)
+    setNewCategoryName('')
+    return created.id
+  }
+
   const handleCreateDraft = async () => {
     if (!validateBasics()) return
     setSaving(true)
     try {
+      const categoryId = await resolveCategoryId()
       const created = await createProduct({
         slug: slugify(form.name),
         name: form.name.trim(),
         brand: form.brand.trim(),
-        category: form.category.trim(),
+        categoryId,
         price: Number(form.price),
         section: form.section,
       })
-      const withSubcat = form.subcategoryId
-        ? await updateProduct(created.id, { subcategoryId: form.subcategoryId })
-        : created
       show('Draft created — add variants, sizes and images below', 'success')
-      refresh(withSubcat)
+      refresh(created)
     } catch (err) {
       show(err.message || 'Failed to create product', 'error')
     } finally {
@@ -143,13 +166,13 @@ export default function ProductModal({ open, product, onClose, onSaved }) {
     if (!validateBasics()) return
     setSaving(true)
     try {
+      const categoryId = await resolveCategoryId()
       const updated = await updateProduct(saved.id, {
         name: form.name.trim(),
         brand: form.brand.trim(),
-        category: form.category.trim(),
         price: Number(form.price),
         section: form.section,
-        subcategoryId: form.subcategoryId || null,
+        categoryId,
       })
       show('Product updated', 'success')
       refresh(updated)
@@ -308,22 +331,45 @@ export default function ProductModal({ open, product, onClose, onSaved }) {
             <input type="number" min="0" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs font-medium text-slate-500">Category</span>
-            <input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" />
-          </label>
-          <label className="text-sm">
             <span className="mb-1 block text-xs font-medium text-slate-500">Section</span>
-            <select value={form.section} onChange={(e) => setForm((f) => ({ ...f, section: e.target.value, subcategoryId: '' }))} className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm">
+            <select
+              value={form.section}
+              onChange={(e) => {
+                const section = e.target.value
+                setForm((f) => ({ ...f, section }))
+                setCategoryChoice('')
+                setNewCategoryName('')
+              }}
+              className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm"
+            >
               {SECTIONS.map((s) => <option key={s} value={s}>{SECTION_LABEL[s]}</option>)}
             </select>
           </label>
           <label className="sm:col-span-2 text-sm">
-            <span className="mb-1 block text-xs font-medium text-slate-500">Sub-category</span>
-            <select value={form.subcategoryId} onChange={(e) => setForm((f) => ({ ...f, subcategoryId: e.target.value }))} className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm">
-              <option value="">None</option>
-              {subcats.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            <span className="mb-1 block text-xs font-medium text-slate-500">Category</span>
+            <select
+              value={categoryChoice}
+              onChange={(e) => setCategoryChoice(e.target.value)}
+              className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm"
+            >
+              <option value="">Select a category…</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              <option value={NEW_CATEGORY_VALUE}>New category…</option>
             </select>
           </label>
+          {categoryChoice === NEW_CATEGORY_VALUE && (
+            <label className="sm:col-span-2 text-sm">
+              <span className="mb-1 block text-xs font-medium text-slate-500">
+                New category name ({SECTION_LABEL[form.section]})
+              </span>
+              <input
+                autoFocus
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm"
+              />
+            </label>
+          )}
         </div>
 
         {!saved ? (

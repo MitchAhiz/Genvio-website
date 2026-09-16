@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  createSubcategory,
-  deleteSubcategory,
-  getSubcategoryProductCount,
-  getSubcategories,
-  updateSubcategory,
+  createCategory,
+  deleteCategory,
+  getCategoryProductCount,
+  getAdminCategories,
+  updateCategory,
 } from '../../api/admin'
 import { useToast } from '../../hooks/useToast'
 import ConfirmDialog from './ConfirmDialog'
@@ -13,16 +13,16 @@ const SECTIONS = ['men', 'women', 'kids']
 const SECTION_LABEL = { men: 'Men', women: 'Women', kids: 'Kids' }
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
 
-function DeleteChoice({ subcategory, sameSection, count, onCancel, onReassign, onUnpublish }) {
+function DeleteChoice({ category, sameSection, count, onCancel, onReassign, onUnpublish }) {
   const [reassignTo, setReassignTo] = useState('')
-  const otherOptions = sameSection.filter((s) => s.id !== subcategory.id)
+  const otherOptions = sameSection.filter((c) => c.id !== category.id)
 
   return (
     <div className="fixed inset-0 z-[1150] flex items-center justify-center bg-slate-900/50 px-4">
       <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
-        <h3 className="text-base font-semibold text-slate-900">Delete "{subcategory.name}"?</h3>
+        <h3 className="text-base font-semibold text-slate-900">Delete "{category.name}"?</h3>
         <p className="mt-1.5 text-sm text-slate-500">
-          {count} product{count === 1 ? '' : 's'} use this sub-category. Choose what happens to them.
+          {count} product{count === 1 ? '' : 's'} use this category. Choose what happens to them.
         </p>
 
         <div className="mt-4 space-y-3">
@@ -35,10 +35,10 @@ function DeleteChoice({ subcategory, sameSection, count, onCancel, onReassign, o
               className="mt-1 w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-400"
             >
               <option value="">
-                {otherOptions.length === 0 ? 'No other sub-category in this section' : 'Select a sub-category…'}
+                {otherOptions.length === 0 ? 'No other category in this section' : 'Select a category…'}
               </option>
-              {otherOptions.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              {otherOptions.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
             <button
@@ -74,25 +74,25 @@ function DeleteChoice({ subcategory, sameSection, count, onCancel, onReassign, o
   )
 }
 
-export default function SubcategoryDrawer({ open, onClose }) {
+export default function CategoryDrawer({ open, onClose }) {
   const { show } = useToast()
-  const [subcategories, setSubcategories] = useState([])
+  const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
   const [newName, setNewName] = useState('')
   const [newSection, setNewSection] = useState('men')
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
-  const [pendingDelete, setPendingDelete] = useState(null) // { subcategory, count } | { subcategory, count: 0 }
+  const [pendingDelete, setPendingDelete] = useState(null) // { category, count } | { category, count: 0 }
   const drawerRef = useRef(null)
   const previouslyFocused = useRef(null)
 
   const load = async () => {
     setLoading(true)
     try {
-      const data = await getSubcategories()
-      setSubcategories(data)
+      const data = await getAdminCategories()
+      setCategories(data)
     } catch {
-      show('Failed to load sub-categories', 'error')
+      show('Failed to load categories', 'error')
     } finally {
       setLoading(false)
     }
@@ -139,18 +139,18 @@ export default function SubcategoryDrawer({ open, onClose }) {
     const name = newName.trim()
     if (!name) return
     try {
-      await createSubcategory(name, newSection)
+      await createCategory(name, newSection)
       setNewName('')
-      show('Sub-category added', 'success')
+      show('Category added', 'success')
       load()
     } catch (err) {
-      show(err.message || 'Failed to add sub-category', 'error')
+      show(err.message || 'Failed to add category', 'error')
     }
   }
 
-  const startRename = (s) => {
-    setRenamingId(s.id)
-    setRenameValue(s.name)
+  const startRename = (c) => {
+    setRenamingId(c.id)
+    setRenameValue(c.name)
   }
 
   const commitRename = async (id) => {
@@ -158,18 +158,18 @@ export default function SubcategoryDrawer({ open, onClose }) {
     setRenamingId(null)
     if (!name) return
     try {
-      await updateSubcategory(id, name)
-      show('Sub-category renamed', 'success')
+      await updateCategory(id, name)
+      show('Category renamed', 'success')
       load()
     } catch (err) {
-      show(err.message || 'Failed to rename sub-category', 'error')
+      show(err.message || 'Failed to rename category', 'error')
     }
   }
 
-  const requestDelete = async (s) => {
+  const requestDelete = async (c) => {
     try {
-      const { count } = await getSubcategoryProductCount(s.id)
-      setPendingDelete({ subcategory: s, count })
+      const { count } = await getCategoryProductCount(c.id)
+      setPendingDelete({ category: c, count })
     } catch {
       show('Failed to check product count', 'error')
     }
@@ -178,18 +178,18 @@ export default function SubcategoryDrawer({ open, onClose }) {
   const runDelete = async (action, reassignTo) => {
     if (!pendingDelete) return
     try {
-      await deleteSubcategory(pendingDelete.subcategory.id, action, reassignTo)
-      show('Sub-category deleted', 'success')
+      await deleteCategory(pendingDelete.category.id, action, reassignTo)
+      show('Category deleted', 'success')
       setPendingDelete(null)
       load()
     } catch (err) {
-      show(err.message || 'Failed to delete sub-category', 'error')
+      show(err.message || 'Failed to delete category', 'error')
     }
   }
 
   const bySection = SECTIONS.map((section) => ({
     section,
-    items: subcategories.filter((s) => s.section === section),
+    items: categories.filter((c) => c.section === section),
   }))
 
   return (
@@ -199,11 +199,11 @@ export default function SubcategoryDrawer({ open, onClose }) {
           ref={drawerRef}
           role="dialog"
           aria-modal="true"
-          aria-label="Manage sub-categories"
+          aria-label="Manage categories"
           className="flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-slate-200 bg-white p-5 shadow-xl"
         >
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold text-slate-900">Sub-categories</h2>
+            <h2 className="font-display text-lg font-semibold text-slate-900">Categories</h2>
             <button type="button" onClick={onClose} aria-label="Close" className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
               ✕
             </button>
@@ -214,7 +214,7 @@ export default function SubcategoryDrawer({ open, onClose }) {
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="New sub-category name"
+              placeholder="New category name"
               className="flex-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm"
             />
             <select
@@ -233,31 +233,31 @@ export default function SubcategoryDrawer({ open, onClose }) {
               <div key={section}>
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{SECTION_LABEL[section]}</h3>
                 {items.length === 0 ? (
-                  <p className="mt-1.5 text-sm text-slate-400">No sub-categories yet.</p>
+                  <p className="mt-1.5 text-sm text-slate-400">No categories yet.</p>
                 ) : (
                   <ul className="mt-1.5 divide-y divide-slate-100">
-                    {items.map((s) => (
-                      <li key={s.id} className="flex items-center justify-between gap-2 py-2">
-                        {renamingId === s.id ? (
+                    {items.map((c) => (
+                      <li key={c.id} className="flex items-center justify-between gap-2 py-2">
+                        {renamingId === c.id ? (
                           <input
                             autoFocus
                             value={renameValue}
                             onChange={(e) => setRenameValue(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') commitRename(s.id)
+                              if (e.key === 'Enter') commitRename(c.id)
                               if (e.key === 'Escape') setRenamingId(null)
                             }}
-                            onBlur={() => commitRename(s.id)}
+                            onBlur={() => commitRename(c.id)}
                             className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm"
                           />
                         ) : (
-                          <button type="button" onClick={() => startRename(s)} className="flex-1 text-left text-sm text-slate-700 hover:underline">
-                            {s.name} <span className="text-slate-400">({s.productCount})</span>
+                          <button type="button" onClick={() => startRename(c)} className="flex-1 text-left text-sm text-slate-700 hover:underline">
+                            {c.name} <span className="text-slate-400">({c.productCount})</span>
                           </button>
                         )}
                         <button
                           type="button"
-                          onClick={() => requestDelete(s)}
+                          onClick={() => requestDelete(c)}
                           className="rounded-md px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50"
                         >
                           Delete
@@ -275,8 +275,8 @@ export default function SubcategoryDrawer({ open, onClose }) {
       {pendingDelete && pendingDelete.count === 0 && (
         <ConfirmDialog
           open
-          title={`Delete "${pendingDelete.subcategory.name}"?`}
-          message="This sub-category has no products. This cannot be undone."
+          title={`Delete "${pendingDelete.category.name}"?`}
+          message="This category has no products. This cannot be undone."
           confirmLabel="Delete"
           onConfirm={() => runDelete()}
           onClose={() => setPendingDelete(null)}
@@ -285,9 +285,9 @@ export default function SubcategoryDrawer({ open, onClose }) {
 
       {pendingDelete && pendingDelete.count > 0 && (
         <DeleteChoice
-          subcategory={pendingDelete.subcategory}
+          category={pendingDelete.category}
           count={pendingDelete.count}
-          sameSection={subcategories.filter((s) => s.section === pendingDelete.subcategory.section)}
+          sameSection={categories.filter((c) => c.section === pendingDelete.category.section)}
           onCancel={() => setPendingDelete(null)}
           onReassign={(reassignTo) => runDelete('reassign', reassignTo)}
           onUnpublish={() => runDelete('unpublish')}

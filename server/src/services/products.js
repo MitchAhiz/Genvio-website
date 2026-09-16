@@ -6,7 +6,7 @@ const productWithRelations = {
   variants: {
     include: { sizes: true },
   },
-  subcategory: true,
+  category: true,
 }
 
 // --- Read ---
@@ -14,7 +14,7 @@ const productWithRelations = {
 async function getProducts({ category, section, includeDrafts = false } = {}) {
   const where = {}
   if (!includeDrafts) where.status = 'published'
-  if (category) where.category = category
+  if (category) where.category = { name: category }
   if (section) where.section = section
 
   return prisma.product.findMany({
@@ -39,15 +39,14 @@ async function getProductById(id) {
 }
 
 async function getCategories({ section } = {}) {
-  const where = { status: 'published' }
+  const where = { status: 'published', categoryId: { not: null } }
   if (section) where.section = section
   const results = await prisma.product.findMany({
     where,
-    select: { category: true },
-    distinct: ['category'],
-    orderBy: { category: 'asc' },
+    select: { category: { select: { name: true } } },
+    distinct: ['categoryId'],
   })
-  return results.map((r) => r.category)
+  return results.map((r) => r.category.name).sort((a, b) => a.localeCompare(b))
 }
 
 async function getInventory(productId) {
@@ -76,23 +75,22 @@ async function resolveUniqueSlug(baseSlug) {
   }
 }
 
-async function createProduct({ slug, name, brand, category, price, section = 'women' }) {
+async function createProduct({ slug, name, brand, categoryId, price, section = 'women' }) {
   const uniqueSlug = await resolveUniqueSlug(slug)
   return prisma.product.create({
-    data: { slug: uniqueSlug, name, brand, category, price, section, status: 'draft' },
+    data: { slug: uniqueSlug, name, brand, categoryId, price, section, status: 'draft' },
     include: productWithRelations,
   })
 }
 
-async function updateProduct(id, { name, brand, category, price, section, subcategoryId, status, variants }) {
+async function updateProduct(id, { name, brand, price, section, categoryId, status, variants }) {
   await prisma.$transaction(async (tx) => {
     const updates = {}
     if (name !== undefined) updates.name = name
     if (brand !== undefined) updates.brand = brand
-    if (category !== undefined) updates.category = category
     if (price !== undefined) updates.price = price
     if (section !== undefined) updates.section = section
-    if (subcategoryId !== undefined) updates.subcategoryId = subcategoryId || null
+    if (categoryId !== undefined) updates.categoryId = categoryId || null
     if (status === 'draft') updates.status = 'draft'
 
     if (Object.keys(updates).length > 0) {

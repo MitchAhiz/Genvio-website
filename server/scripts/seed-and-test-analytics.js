@@ -38,15 +38,22 @@ function daysAgo(n) {
 }
 
 async function seed() {
+  const categories = await Promise.all([
+    prisma.category.create({ data: { id: `${TAG}-category-men`, name: 'Shirts', section: 'men' } }),
+    prisma.category.create({ data: { id: `${TAG}-category-women`, name: 'Dresses', section: 'women' } }),
+    prisma.category.create({ data: { id: `${TAG}-category-kids`, name: 'Sets', section: 'kids' } }),
+  ])
+  const [catMen, catWomen, catKids] = categories
+
   const products = await Promise.all([
     prisma.product.create({
-      data: { id: `${TAG}-product-men`, slug: `${TAG}-men-shirt`, name: 'Test Seed Men Shirt', brand: 'TestBrand', category: 'Shirts', section: 'men', price: 5000, status: 'published' },
+      data: { id: `${TAG}-product-men`, slug: `${TAG}-men-shirt`, name: 'Test Seed Men Shirt', brand: 'TestBrand', categoryId: catMen.id, section: 'men', price: 5000, status: 'published' },
     }),
     prisma.product.create({
-      data: { id: `${TAG}-product-women`, slug: `${TAG}-women-dress`, name: 'Test Seed Women Dress', brand: 'TestBrand', category: 'Dresses', section: 'women', price: 15000, status: 'published' },
+      data: { id: `${TAG}-product-women`, slug: `${TAG}-women-dress`, name: 'Test Seed Women Dress', brand: 'TestBrand', categoryId: catWomen.id, section: 'women', price: 15000, status: 'published' },
     }),
     prisma.product.create({
-      data: { id: `${TAG}-product-kids`, slug: `${TAG}-kids-set`, name: 'Test Seed Kids Set', brand: 'TestBrand', category: 'Sets', section: 'kids', price: 8000, status: 'published' },
+      data: { id: `${TAG}-product-kids`, slug: `${TAG}-kids-set`, name: 'Test Seed Kids Set', brand: 'TestBrand', categoryId: catKids.id, section: 'kids', price: 8000, status: 'published' },
     }),
   ])
 
@@ -96,29 +103,29 @@ async function seed() {
   await logActivity('testseed.product.created', 'product', men.id, { name: men.name })
   await logActivity('testseed.order.status_changed', 'order', orders[0].id, { from: 'pending_payment', to: 'confirmed' })
 
-  // Task 03's zero-product subcategory delete logs `action: null` inside the
+  // Task 03's zero-product category delete logs `action: null` inside the
   // JSON detail (distinct from the activity_log row's own top-level `action`
-  // column, which is always the string "subcategory.deleted"). Reproduce
+  // column, which is always the string "category.deleted"). Reproduce
   // that exact shape here so /api/activity's JSON-text search and the JSON
   // round-trip are exercised against a real null value, not just non-null
   // detail payloads.
-  const subcategory = await prisma.subcategory.create({
-    data: { id: `${TAG}-subcategory-1`, name: 'Test Seed Subcategory', section: 'men' },
+  const extraCategory = await prisma.category.create({
+    data: { id: `${TAG}-category-extra`, name: 'Test Seed Category', section: 'men' },
   })
-  await logActivity('testseed.subcategory.deleted', 'subcategory', subcategory.id, {
+  await logActivity('testseed.category.deleted', 'category', extraCategory.id, {
     action: null,
     affectedProductCount: 0,
   })
 
-  return { products, customers, subcategory, orders: orderSpecs.map((s, i) => ({ ...s, order: orders[i] })) }
+  return { products, customers, category: extraCategory, orders: orderSpecs.map((s, i) => ({ ...s, order: orders[i] })) }
 }
 
 async function cleanup() {
   await prisma.activityLog.deleteMany({ where: { action: { startsWith: TAG } } })
   await prisma.order.deleteMany({ where: { id: { startsWith: `${TAG}-` } } })
   await prisma.customer.deleteMany({ where: { id: { startsWith: `${TAG}-` } } })
-  await prisma.subcategory.deleteMany({ where: { id: { startsWith: `${TAG}-` } } })
   await prisma.product.deleteMany({ where: { id: { startsWith: `${TAG}-` } } })
+  await prisma.category.deleteMany({ where: { id: { startsWith: `${TAG}-` } } })
 }
 
 function computeExpected(seedOrders) {
@@ -186,17 +193,17 @@ async function main() {
     check('search filters to seeded rows only', search.items.length >= 3 && search.items.every((i) => i.action.startsWith('testseed')), JSON.stringify(search.items.map((i) => i.action)))
 
     console.log('\n--- Null-action detail (Task 03 zero-product-delete shape) ---')
-    const nullActionRes = await fetch(`${BASE}/activity?search=subcategory.deleted`, { headers: { Cookie: cookie } })
+    const nullActionRes = await fetch(`${BASE}/activity?search=category.deleted`, { headers: { Cookie: cookie } })
     check('search on the row itself responds 200 (not a 500 from the null value)', nullActionRes.status === 200, `got ${nullActionRes.status}`)
     const nullActionBody = await nullActionRes.json()
-    const nullActionRow = nullActionBody.items.find((i) => i.action === 'testseed.subcategory.deleted')
+    const nullActionRow = nullActionBody.items.find((i) => i.action === 'testseed.category.deleted')
     check('row is found by search, not silently dropped', !!nullActionRow, JSON.stringify(nullActionBody.items.map((i) => i.action)))
     check('detail.action round-trips as JSON null (not missing, not the string "null")', nullActionRow && nullActionRow.detail.action === null && 'action' in nullActionRow.detail, JSON.stringify(nullActionRow?.detail))
     check('detail.affectedProductCount survives alongside the null field', nullActionRow?.detail.affectedProductCount === 0, JSON.stringify(nullActionRow?.detail))
     // The unfiltered list (already fetched above) must include this row too,
     // and JSON.parse of the response (done implicitly by res.json()) must not
     // throw on the embedded null — if it had, this assertion would never run.
-    check('unfiltered /api/activity also parses and includes the null-detail row without throwing', act.items.some((i) => i.action === 'testseed.subcategory.deleted') || act.totalCount >= 3)
+    check('unfiltered /api/activity also parses and includes the null-detail row without throwing', act.items.some((i) => i.action === 'testseed.category.deleted') || act.totalCount >= 3)
 
     console.log('\n--- GET /api/analytics/revenue ---')
     const revRes = await fetch(`${BASE}/analytics/revenue?period=all`, { headers: { Cookie: cookie } })
@@ -260,7 +267,7 @@ async function main() {
         (SELECT COUNT(*) FROM products WHERE id LIKE ${TAG + '-%'}) +
         (SELECT COUNT(*) FROM customers WHERE id LIKE ${TAG + '-%'}) +
         (SELECT COUNT(*) FROM orders WHERE id LIKE ${TAG + '-%'}) +
-        (SELECT COUNT(*) FROM subcategories WHERE id LIKE ${TAG + '-%'}) +
+        (SELECT COUNT(*) FROM categories WHERE id LIKE ${TAG + '-%'}) +
         (SELECT COUNT(*) FROM activity_log WHERE action LIKE ${TAG + '%'})
       )::int AS remaining
     `

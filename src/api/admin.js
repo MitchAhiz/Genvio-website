@@ -35,13 +35,13 @@ export const deleteProductImage = (imageId) => del(`/api/images/${imageId}`)
 export const deleteProductVariant = (variantId) => del(`/api/variants/${variantId}`)
 export const deleteVariantSize = (variantId, sizeId) => del(`/api/variants/${variantId}/sizes/${sizeId}`)
 
-// --- Sub-categories ---
+// --- Categories ---
 
-export const getSubcategories = (section) => get('/api/subcategories', section ? { section } : undefined)
-export const createSubcategory = (name, section) => post('/api/subcategories', { name, section })
-export const updateSubcategory = (id, name) => patch(`/api/subcategories/${id}`, { name })
-export const deleteSubcategory = (id, action, reassignTo) => del(`/api/subcategories/${id}`, { action, reassignTo })
-export const getSubcategoryProductCount = (id) => get(`/api/subcategories/${id}/product-count`)
+export const getAdminCategories = (section) => get('/api/admin/categories', section ? { section } : undefined)
+export const createCategory = (name, section) => post('/api/admin/categories', { name, section })
+export const updateCategory = (id, name) => patch(`/api/admin/categories/${id}`, { name })
+export const deleteCategory = (id, action, reassignTo) => del(`/api/admin/categories/${id}`, { action, reassignTo })
+export const getCategoryProductCount = (id) => get(`/api/admin/categories/${id}/product-count`)
 
 // --- Orders ---
 
