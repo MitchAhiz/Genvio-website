@@ -412,7 +412,7 @@ export default function AdminProducts() {
             <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
               <th className="w-10 px-3 py-2"><input type="checkbox" checked={allSelected} onChange={toggleAll} /></th>
               <th className="px-3 py-2">Product</th>
-              <th className="px-3 py-2">Section / Sub-cat</th>
+              <th className="px-3 py-2">Section / Category</th>
               <th className="px-3 py-2">Price</th>
               <th className="px-3 py-2">Stock</th>
               <th className="px-3 py-2">Status</th>
