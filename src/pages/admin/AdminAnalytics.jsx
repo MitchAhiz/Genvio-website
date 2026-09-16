@@ -59,7 +59,7 @@ function RevenueCards({ revenue, loading }) {
 function BestSellersTable({ products, loading, sort, onSortChange, onRowClick }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white">
-      <div className="flex items-center justify-between border-b border-slate-100 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 p-4">
         <h3 className="text-sm font-semibold text-slate-900">Best sellers</h3>
         <div className="flex gap-1">
           {[{ value: 'units', label: 'Units' }, { value: 'revenue', label: 'Revenue' }].map((opt) => (
@@ -76,7 +76,31 @@ function BestSellersTable({ products, loading, sort, onSortChange, onRowClick })
           ))}
         </div>
       </div>
-      <div className="overflow-x-auto">
+      {/* Mobile: stacked cards instead of a horizontally-scrolled table */}
+      <div className="space-y-2 p-3 md:hidden">
+        {loading && Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} className="h-14" />)}
+        {!loading && products.length === 0 && (
+          <p className="px-1 py-6 text-center text-sm text-slate-400">No sales data yet.</p>
+        )}
+        {!loading && products.map((p, i) => (
+          <button
+            key={p.productId || p.name}
+            type="button"
+            disabled={!p.productId}
+            onClick={() => p.productId && onRowClick(p.productId)}
+            className="flex w-full items-center gap-3 rounded-lg border border-slate-200 p-3 text-left disabled:opacity-80"
+          >
+            <span className="text-sm font-medium text-slate-400">{i + 1}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm text-slate-700">{p.name}</span>
+              <span className="block text-xs text-slate-400">{SECTION_LABEL[p.section] || '—'} · {p.unitsSold} sold</span>
+            </span>
+            <NairaAmount value={p.revenue} className="shrink-0 text-sm font-medium text-slate-900" />
+          </button>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">

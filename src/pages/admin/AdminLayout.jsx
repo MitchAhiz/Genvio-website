@@ -135,14 +135,14 @@ function AdminShell({ onLogout }) {
             </button>
           </header>
 
-          <main className="flex-1 px-4 py-5 pb-20 md:px-8 md:py-8 md:pb-8">
+          <main className="flex-1 px-4 py-5 pb-24 md:px-8 md:py-8 md:pb-8">
             <Outlet />
           </main>
         </div>
       </div>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 bg-white md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
         {NAV_ITEMS.map((item) => (
           <TabBarLink key={item.to} {...item} />
         ))}

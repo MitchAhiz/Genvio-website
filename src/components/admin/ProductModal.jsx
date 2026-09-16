@@ -294,8 +294,8 @@ export default function ProductModal({ open, product, onClose, onSaved }) {
         </div>
 
         {/* Basic info */}
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <label className="col-span-2 text-sm">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="sm:col-span-2 text-sm">
             <span className="mb-1 block text-xs font-medium text-slate-500">Name</span>
             <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm" />
           </label>
@@ -317,7 +317,7 @@ export default function ProductModal({ open, product, onClose, onSaved }) {
               {SECTIONS.map((s) => <option key={s} value={s}>{SECTION_LABEL[s]}</option>)}
             </select>
           </label>
-          <label className="col-span-2 text-sm">
+          <label className="sm:col-span-2 text-sm">
             <span className="mb-1 block text-xs font-medium text-slate-500">Sub-category</span>
             <select value={form.subcategoryId} onChange={(e) => setForm((f) => ({ ...f, subcategoryId: e.target.value }))} className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm">
               <option value="">None</option>
@@ -351,20 +351,20 @@ export default function ProductModal({ open, product, onClose, onSaved }) {
                 {saved.variants.length === 0 && <p className="text-sm text-slate-400">No colour variants yet.</p>}
                 {saved.variants.map((v) => (
                   <div key={v.id} className="rounded-lg border border-slate-200 p-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         defaultValue={v.colour}
                         onBlur={(e) => e.target.value !== v.colour && saveVariantColour(v.id, e.target.value)}
-                        className="flex-1 rounded-md border border-slate-200 px-2 py-1 text-sm"
+                        className="min-w-[110px] flex-1 rounded-md border border-slate-200 px-2 py-1 text-sm"
                         placeholder="Colour name"
                       />
                       <input
                         defaultValue={v.imageUrl || ''}
                         onBlur={(e) => e.target.value !== (v.imageUrl || '') && saveVariantImage(v.id, e.target.value)}
-                        className="flex-1 rounded-md border border-slate-200 px-2 py-1 text-sm"
+                        className="min-w-[140px] flex-1 rounded-md border border-slate-200 px-2 py-1 text-sm"
                         placeholder="Image URL"
                       />
-                      <button type="button" onClick={() => setConfirmDeleteVariant(v.id)} className="rounded-md px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50">Delete</button>
+                      <button type="button" onClick={() => setConfirmDeleteVariant(v.id)} className="rounded-md px-2 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50">Delete</button>
                     </div>
 
                     <div className="mt-2 flex flex-wrap gap-2">

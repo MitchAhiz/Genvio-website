@@ -8,7 +8,7 @@ import {
 } from '../../api/admin'
 import { useToast } from '../../hooks/useToast'
 import ConfirmDialog from '../../components/admin/ConfirmDialog'
-import { RowSkeleton } from '../../components/admin/Skeleton'
+import { CardSkeleton, RowSkeleton } from '../../components/admin/Skeleton'
 import { NairaAmount } from '../../utils/currency'
 import ProductModal from '../../components/admin/ProductModal'
 import SubcategoryDrawer from '../../components/admin/SubcategoryDrawer'
@@ -133,6 +133,64 @@ function InlineText({ value, onSave, validate, className = '' }) {
       }}
       className={`w-full rounded border border-slate-300 px-1.5 py-0.5 ${className}`}
     />
+  )
+}
+
+// Card layout for the same row data — used below `md` where the table
+// would otherwise force horizontal scrolling with no visual affordance.
+function ProductCard({ product, selected, onToggleSelect, onSaveName, onSavePrice, onToggleStatus, onEdit, onDelete }) {
+  const total = stockTotal(product)
+  const low = hasLowStockSize(product)
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggleSelect}
+          className="mt-1 h-5 w-5 shrink-0"
+        />
+        {product.images[0] ? (
+          <img src={product.images[0].url} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
+        ) : (
+          <div className="h-12 w-12 shrink-0 rounded bg-slate-100" />
+        )}
+        <div className="min-w-0 flex-1">
+          <InlineText value={product.name} onSave={(v) => v.trim() && onSaveName(v.trim())} className="font-medium text-slate-900" />
+          <div className="mt-0.5 text-xs text-slate-400">
+            <span className="capitalize">{product.section}</span>
+            {product.subcategory?.name && <span> · {product.subcategory.name}</span>}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleStatus}
+          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${product.status === 'published' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}
+        >
+          {product.status === 'published' ? 'Published' : 'Draft'}
+        </button>
+      </div>
+
+      <div className="mt-2.5 flex items-center justify-between text-sm">
+        <InlineText
+          value={String(product.price)}
+          validate={(v) => Number.isFinite(Number(v)) && Number(v) > 0}
+          onSave={onSavePrice}
+          className="font-medium"
+        />
+        <span className={`tabular-nums ${low ? 'text-red-600' : 'text-slate-500'}`}>{total} in stock</span>
+      </div>
+
+      <div className="mt-3 flex gap-2 border-t border-slate-100 pt-2.5">
+        <button type="button" onClick={onEdit} className="flex-1 rounded-md border border-slate-200 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+          Edit
+        </button>
+        <button type="button" onClick={onDelete} className="flex-1 rounded-md border border-red-200 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+          Delete
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -307,15 +365,15 @@ export default function AdminProducts() {
       </div>
 
       {selected.size > 0 && (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2">
           <span className="text-sm text-slate-500">{selected.size} selected</span>
-          <select value={bulkAction} onChange={(e) => setBulkAction(e.target.value)} className="rounded-md border border-slate-200 px-2 py-1 text-sm">
+          <select value={bulkAction} onChange={(e) => setBulkAction(e.target.value)} className="rounded-md border border-slate-200 px-2 py-1.5 text-sm">
             <option value="">Bulk action…</option>
             <option value="publish">Publish selected</option>
             <option value="unpublish">Unpublish selected</option>
             <option value="delete">Delete selected</option>
           </select>
-          <button type="button" onClick={handleBulkTrigger} disabled={!bulkAction} className="rounded-md bg-slate-900 px-3 py-1 text-sm font-medium text-white disabled:opacity-40">
+          <button type="button" onClick={handleBulkTrigger} disabled={!bulkAction} className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40">
             Apply
           </button>
         </div>
@@ -325,7 +383,30 @@ export default function AdminProducts() {
         <LowStockPanel products={products} />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      {/* Mobile: stacked cards instead of a horizontally-scrolled table */}
+      <div className="space-y-3 md:hidden">
+        {loading && Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} className="h-28" />)}
+        {!loading && filtered.length === 0 && (
+          <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
+            No products found.
+          </div>
+        )}
+        {!loading && filtered.map((p) => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            selected={selected.has(p.id)}
+            onToggleSelect={() => toggleOne(p.id)}
+            onSaveName={(v) => saveName(p, v)}
+            onSavePrice={(v) => savePrice(p, v)}
+            onToggleStatus={() => toggleStatus(p)}
+            onEdit={() => setModalProduct(p)}
+            onDelete={() => setConfirmDelete(p.id)}
+          />
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border border-slate-200 bg-white md:block">
         <table className="w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">

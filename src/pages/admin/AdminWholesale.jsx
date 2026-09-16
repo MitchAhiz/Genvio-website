@@ -59,7 +59,8 @@ function SortableImageCard({ image, onEdit, onDelete }) {
         {...attributes}
         {...listeners}
         aria-label="Drag to reorder"
-        className="absolute left-2 top-2 z-10 cursor-grab rounded-md bg-white/90 p-1.5 text-slate-500 shadow hover:text-slate-900 active:cursor-grabbing"
+        style={{ touchAction: 'none' }}
+        className="absolute left-2 top-2 z-10 flex h-10 w-10 cursor-grab select-none items-center justify-center rounded-md bg-white/90 text-slate-500 shadow hover:text-slate-900 active:cursor-grabbing"
       >
         <DragHandleIcon className="h-4 w-4" />
       </button>

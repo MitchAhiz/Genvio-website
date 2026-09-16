@@ -28,7 +28,7 @@ export default function SectionBarChart({ sections, period, onPeriodChange, load
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-slate-900">Orders by section</h3>
         <div className="flex gap-1">
           {PERIODS.map((p) => (
