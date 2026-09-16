@@ -51,3 +51,10 @@ export const getSubcategoryProductCount = (id) => get(`/api/subcategories/${id}/
 export const getOrders = () => get('/api/orders')
 export const updateOrderStatus = (id, status) => patch(`/api/orders/${id}`, { status })
 export const updateOrderNotes = (id, notes) => patch(`/api/orders/${id}/notes`, { notes })
+
+// --- Analytics ---
+
+export const getRevenueAnalytics = (period) => get('/api/analytics/revenue', { period })
+export const getOrdersBySection = (period) => get('/api/analytics/orders-by-section', { period })
+export const getStatusBreakdown = () => get('/api/analytics/status-breakdown')
+export const getBestSellers = (sort, limit) => get('/api/analytics/best-sellers', { sort, limit })

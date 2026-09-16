@@ -32,7 +32,8 @@ before writing any code.**
 | 06 | Admin shell & shared components | ✅ Done — shell verified live; OTP end-to-end gap flagged — see Section 16 below |
 | 07 | Products tab | ✅ Done and verified — see Section 17 below |
 | 08 | Orders tab | ✅ Done and verified — see Section 18 below |
-| 09+ | Analytics tab onward | Not started |
+| 09 | Analytics tab | ✅ Done and verified — see Section 19 below |
+| 10+ | Wholesale tab onward | Not started |
 
 ---
 
@@ -784,5 +785,105 @@ cleaned up afterward.
 
 ---
 
+## 19. Task 09 — Analytics Tab (Complete & Verified)
+
+Built `AdminAnalytics.jsx` (5 revenue summary cards with % change
+indicator, best-sellers table sortable by units/revenue with
+click-to-open `ProductModal`) plus three chart components:
+`RevenueChart.jsx` (line, 7d/30d/3m toggle), `SectionBarChart.jsx`
+(grouped bar, Men/Women/Kids, week/month/all toggle), and
+`StatusDonutChart.jsx` (donut with legend). Installed `recharts`.
+Extended `src/api/admin.js` with `getRevenueAnalytics`,
+`getOrdersBySection`, `getStatusBreakdown`, `getBestSellers`.
+
+**Design note — best-sellers row click → ProductModal:** the
+best-sellers endpoint returns only `{ productId, name, section,
+unitsSold, revenue }`, not full product records, and no `GET
+/api/products/:id` endpoint exists (only `/api/products/:slug`).
+Clicking a row calls `getAdminProducts()` (the same full-list fetch
+`AdminProducts.jsx` uses) and finds the match by `productId`, rather
+than adding a new backend endpoint — consistent with the "no
+listing/detail endpoint, fetch full list client-side" pattern already
+established in Task 08.
+
+**Verified live:** production build passes clean. A throwaway seed
+script (`server/scripts/seed-analytics-ui.js`, deleted after use)
+created 3 products (men/women/kids) and 6 orders spanning today
+through 40 days ago across all 5 statuses, directly against the live
+Supabase DB. Confirmed via browser walkthrough with real OTP login:
+revenue card math verified by hand against the seed data (total,
+month, week, pending, confirmed all matched exactly); the % change
+indicator rendered with the correct up arrow; the revenue chart's 3m
+toggle re-fetched and pulled in an order outside the 30d window; the
+orders-by-section "All time" toggle re-fetched with `period=all`
+(confirmed via network log) and pulled in an order from last month
+that "This month" excluded; the best-sellers table sorted correctly
+by both units and revenue; clicking a best-seller row opened
+`ProductModal` pre-filled with the correct name, brand, price,
+category, section, and existing colour/size variant; Escape closed
+the modal. Both empty-state renders (no orders at all) and populated
+renders were checked — no crashes in either case. All seed data was
+deleted afterward and confirmed at zero rows remaining via a direct
+count query.
+
+**Also encountered and resolved, not a code defect:** the dev
+backend's CORS allowlist only includes ports 5173/5174, so a Vite
+dev server that lands on a different port (e.g. 5175, when those are
+already occupied by other processes) gets `Network error` on every
+API call from the browser — not a Supabase or a Task 09 issue. Fixed
+during this session by starting Vite explicitly on port 5173 — no
+change was made to `server/src/index.js`'s `ALLOWED_ORIGINS` or any
+dev-server config file. Also hit a genuine Supabase free-tier full
+pause (not just idle-between-calls cold start) that took multiple
+retries over ~1 minute to clear — worth knowing this can take longer
+than a single retry on a project that's been fully dormant.
+
+**Best-sellers "empty then populated" during verification — investigated,
+confirmed not a bug:** immediately after seeding, one `get_page_text`
+snapshot showed the best-sellers table with headers but no visible row
+text, and a snapshot moments later showed the rows populated. Reproduced
+directly against `analyticsService.getBestSellers()` with zero delay
+between an `order.create()` and the very next call (no sleep, no
+retry): the freshly-inserted order was present immediately — Postgres
+read-after-write on a single instance, no replica lag, no query-level
+caching anywhere in the analytics service. The seed script's insert had
+already fully completed (the Node process exited) before the browser
+was ever navigated to the page, so there was no seed/fetch race either.
+The actual explanation is that `AdminAnalytics.jsx` fires four
+independent `useEffect`s on mount (revenue, sections, statuses,
+best-sellers) as four separate network round trips with no shared
+dependency, each gated by its own `loading` state. `RowSkeleton`
+(`Skeleton.jsx`) renders empty `<div>` placeholders with no text
+content, so a text-extraction snapshot taken while the best-sellers
+fetch (typically the slowest of the four — it re-derives per-product
+totals from every order's JSON `items` in memory) is still in flight
+sees "headers, no row text," which is indistinguishable from a bug in
+a plain-text dump but is just the loading skeleton rendering correctly.
+No code change was made or needed — this was an artifact of how the
+verification snapshot was timed, not a caching or fetch-ordering bug.
+**Flag for future tasks:** if it ever needs to look instantaneous, that
+would mean giving `RowSkeleton` accessible loading text, not touching
+the fetch logic.
+
+**OTP codes are logged in production, not just dev — flagged, not
+fixed (out of scope for Task 09):** `server/src/services/auth.js`'s
+`sendOtpEmail` has a `console.log('[DEV] OTP for...')` line that is
+correctly gated behind "no `BREVO_API_KEY` configured," but the
+**Brevo send path itself is not gated by `NODE_ENV`** — every call logs
+`console.log('[BREVO] Request payload:', ...)`, and that payload
+includes `subject: \`Your login code: ${code}\``. In other words, the
+6-digit OTP is written to stdout/server logs on every real send,
+in production exactly as in dev, because the email subject carries the
+code and the whole payload gets logged before sending. Confirmed by
+reading `server/src/routes/auth.js` and `server/src/services/auth.js`
+directly — there is no `NODE_ENV !== 'production'` guard anywhere in
+that log statement. **This is a real finding, not addressed here**
+since it's unrelated to the Analytics tab's scope — whoever picks up
+Task 10 (or a dedicated fix) should either drop the code from the
+logged subject line or gate the whole `[BREVO]` log block behind a
+dev-only check.
+
+---
+
 *End of handoff. Proceed to `00-INDEX.md` for the task list, next up
-`TASK-09-admin-analytics-tab.md`.*
+`TASK-10-admin-wholesale-tab.md`.*
