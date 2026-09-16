@@ -9,6 +9,9 @@ const {
   updateProduct,
   addImages,
   publishProduct,
+  unpublishProduct,
+  bulkUpdate,
+  reorderImages,
   deleteProduct,
   deleteImage,
   deleteVariant,
@@ -99,13 +102,58 @@ router.patch('/products/:id', requireAdminAuth, async (req, res, next) => {
     const existing = await getProductById(req.params.id)
     if (!existing) return res.status(404).json({ error: 'Product not found' })
 
-    const { name, brand, category, price, section, variants } = req.body
+    const { name, brand, category, price, section, subcategoryId, status, variants } = req.body
     if (price !== undefined && (typeof price !== 'number' || price <= 0)) {
       return res.status(400).json({ error: 'Price must be a positive number' })
     }
     if (section !== undefined && !isValidSection(section)) return sectionError(res)
-    const product = await updateProduct(req.params.id, { name, brand, category, price, section, variants })
-    res.json(product)
+    if (status !== undefined && status !== 'draft' && status !== 'published') {
+      return res.status(400).json({ error: 'status must be "draft" or "published"' })
+    }
+    const result = await updateProduct(req.params.id, { name, brand, category, price, section, subcategoryId, status, variants })
+    if (!result.ok) return res.status(400).json({ error: result.error })
+    res.json(result.product)
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.post('/products/bulk', requireAdminAuth, async (req, res, next) => {
+  try {
+    const { ids, action } = req.body
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids must be a non-empty array' })
+    }
+    if (!['publish', 'unpublish', 'delete'].includes(action)) {
+      return res.status(400).json({ error: 'action must be "publish", "unpublish", or "delete"' })
+    }
+    const results = await bulkUpdate(ids, action)
+    res.json({ results })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.post('/products/:id/unpublish', requireAdminAuth, async (req, res, next) => {
+  try {
+    const result = await unpublishProduct(req.params.id)
+    if (!result.ok) return res.status(404).json({ error: result.error })
+    res.json(result.product)
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.patch('/products/:id/images/reorder', requireAdminAuth, async (req, res, next) => {
+  try {
+    const existing = await getProductById(req.params.id)
+    if (!existing) return res.status(404).json({ error: 'Product not found' })
+    const { order } = req.body
+    if (!Array.isArray(order) || order.length === 0) {
+      return res.status(400).json({ error: 'order must be a non-empty array of image ids' })
+    }
+    const images = await reorderImages(req.params.id, order)
+    res.json(images)
   } catch (err) {
     next(err)
   }

@@ -1,10 +1,12 @@
 const prisma = require('../db')
+const { logActivity } = require('../utils/logActivity')
 
 const productWithRelations = {
   images: { orderBy: { sortOrder: 'asc' } },
   variants: {
     include: { sizes: true },
   },
+  subcategory: true,
 }
 
 // --- Read ---
@@ -82,14 +84,16 @@ async function createProduct({ slug, name, brand, category, price, section = 'wo
   })
 }
 
-async function updateProduct(id, { name, brand, category, price, section, variants }) {
-  return prisma.$transaction(async (tx) => {
+async function updateProduct(id, { name, brand, category, price, section, subcategoryId, status, variants }) {
+  await prisma.$transaction(async (tx) => {
     const updates = {}
     if (name !== undefined) updates.name = name
     if (brand !== undefined) updates.brand = brand
     if (category !== undefined) updates.category = category
     if (price !== undefined) updates.price = price
     if (section !== undefined) updates.section = section
+    if (subcategoryId !== undefined) updates.subcategoryId = subcategoryId || null
+    if (status === 'draft') updates.status = 'draft'
 
     if (Object.keys(updates).length > 0) {
       await tx.product.update({ where: { id }, data: updates })
@@ -137,11 +141,19 @@ async function updateProduct(id, { name, brand, category, price, section, varian
       }
     }
 
-    return tx.product.findUnique({
-      where: { id },
-      include: productWithRelations,
-    })
   })
+
+  if (status === 'published') {
+    const result = await publishProduct(id)
+    if (!result.ok) return { ok: false, error: result.error }
+    return { ok: true, product: result.product }
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: productWithRelations,
+  })
+  return { ok: true, product }
 }
 
 async function addImages(productId, urls) {
@@ -181,6 +193,48 @@ async function publishProduct(id) {
     include: productWithRelations,
   })
   return { ok: true, product: updated }
+}
+
+async function unpublishProduct(id) {
+  const product = await prisma.product.findUnique({ where: { id } })
+  if (!product) return { ok: false, error: 'Product not found' }
+  const updated = await prisma.product.update({
+    where: { id },
+    data: { status: 'draft' },
+    include: productWithRelations,
+  })
+  return { ok: true, product: updated }
+}
+
+async function bulkUpdate(ids, action) {
+  const results = []
+  for (const id of ids) {
+    if (action === 'publish') {
+      const result = await publishProduct(id)
+      results.push({ id, ok: result.ok, error: result.ok ? undefined : result.error })
+    } else if (action === 'unpublish') {
+      const result = await unpublishProduct(id)
+      results.push({ id, ok: result.ok, error: result.ok ? undefined : result.error })
+    } else if (action === 'delete') {
+      try {
+        await prisma.product.delete({ where: { id } })
+        results.push({ id, ok: true })
+      } catch (err) {
+        results.push({ id, ok: false, error: 'Delete failed' })
+      }
+    }
+  }
+  await logActivity(`product.bulk_${action}`, 'product', null, { ids, results })
+  return results
+}
+
+async function reorderImages(productId, orderedIds) {
+  await prisma.$transaction(
+    orderedIds.map((imageId, index) =>
+      prisma.productImage.update({ where: { id: imageId }, data: { sortOrder: index } })
+    )
+  )
+  return prisma.productImage.findMany({ where: { productId }, orderBy: { sortOrder: 'asc' } })
 }
 
 async function deleteProduct(id) {
@@ -224,6 +278,9 @@ module.exports = {
   updateProduct,
   addImages,
   publishProduct,
+  unpublishProduct,
+  bulkUpdate,
+  reorderImages,
   deleteProduct,
   deleteImage,
   deleteVariant,
