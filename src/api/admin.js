@@ -71,3 +71,21 @@ export const renameWholesaleCategory = (name, newName) =>
   patch(`/api/wholesale/categories/${encodeURIComponent(name)}`, { name: newName })
 export const deleteWholesaleCategory = (name, action, reassignTo) =>
   del(`/api/wholesale/categories/${encodeURIComponent(name)}`, { action, reassignTo })
+
+// --- Settings ---
+
+export const getAllConfig = () => get('/api/config/all')
+// No dedicated PATCH /api/config/payment route exists (see HANDOFF.md
+// Task 05 notes) — the generic PATCH /api/config already accepts and
+// validates bank_account_name/bank_account_number/bank_name.
+export const updateConfig = (data) => patch('/api/config', data)
+export const getActivityLog = (page, search) => get('/api/activity', { page, search })
+export const getConfigHistory = (keys, limit) => get('/api/config/history', { keys: keys?.join(','), limit })
+
+// --- Session & Auth ---
+// Reuses the same endpoints the OTP login flow already calls
+// (server/src/routes/auth.js) — no new auth backend added here.
+
+export const getCurrentSession = () => get('/api/auth/me')
+export const logoutAdmin = () => post('/api/auth/logout')
+export const invalidateAllSessions = () => post('/api/auth/invalidate-all')

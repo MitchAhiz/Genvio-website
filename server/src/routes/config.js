@@ -1,5 +1,5 @@
 const { Router } = require('express')
-const { getConfig, getAllConfig, setConfigBulk } = require('../services/configService')
+const { getConfig, getAllConfig, setConfigBulk, getConfigHistory } = require('../services/configService')
 const { requireAdminAuth } = require('../middleware/auth')
 const { cleanEmail } = require('../utils/sanitize')
 const { logActivity } = require('../utils/logActivity')
@@ -69,6 +69,26 @@ router.get('/config/site', async (_req, res, next) => {
 router.get('/config/all', requireAdminAuth, async (_req, res, next) => {
   try {
     res.json(await getAllConfig())
+  } catch (err) {
+    next(err)
+  }
+})
+
+// Admin: recent config_change_history entries for the Settings tab's
+// Change History display. Bank fields are the intended default scope
+// (?keys=bank_account_name,bank_account_number,bank_name) — old/new
+// values are deliberately omitted from the response, matching
+// config.updated's activity-log precedent of never surfacing
+// bank_account_number's actual value, even to an authenticated admin
+// over this read path.
+router.get('/config/history', requireAdminAuth, async (req, res, next) => {
+  try {
+    const keys = typeof req.query.keys === 'string' && req.query.keys.trim()
+      ? req.query.keys.split(',').map((k) => k.trim()).filter(Boolean)
+      : undefined
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 3))
+    const rows = await getConfigHistory({ keys, limit })
+    res.json(rows.map((r) => ({ id: r.id, key: r.key, changedAt: r.changedAt })))
   } catch (err) {
     next(err)
   }

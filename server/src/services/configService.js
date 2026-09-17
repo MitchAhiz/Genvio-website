@@ -67,4 +67,19 @@ async function setConfigBulk(entries) {
   return results
 }
 
-module.exports = { getConfig, getAllConfig, setConfig, setConfigBulk, DEFAULT_KEYS: Object.keys(DEFAULTS) }
+// Most-recent-first change history, optionally scoped to one or more keys
+// (the Settings tab's Payment & Banking card only wants bank_* rows, not
+// every config key ever changed). oldValue/newValue are left JSON-encoded
+// as stored — decoding them is the caller's concern, matching how `decode`
+// is only applied to the current-value read path above.
+async function getConfigHistory({ keys, limit = 20 } = {}) {
+  const where = Array.isArray(keys) && keys.length > 0 ? { key: { in: keys } } : undefined
+  const rows = await prisma.configChangeHistory.findMany({
+    where,
+    orderBy: { changedAt: 'desc' },
+    take: limit,
+  })
+  return rows
+}
+
+module.exports = { getConfig, getAllConfig, setConfig, setConfigBulk, getConfigHistory, DEFAULT_KEYS: Object.keys(DEFAULTS) }

@@ -47,6 +47,14 @@ function destroySession(token) {
   sessionStore.delete(token)
 }
 
+// Wipes every active session, including the caller's own — there's only
+// ever one admin account, so "all sessions" and "the whole store" are the
+// same thing. The route that calls this must clear the caller's cookie
+// too, since their token is now dangling.
+function destroyAllSessions() {
+  sessionStore.clear()
+}
+
 async function sendOtpEmail(email, code) {
   const apiKey = process.env.BREVO_API_KEY
   if (!apiKey) {
@@ -98,6 +106,7 @@ module.exports = {
   createSession,
   validateSession,
   destroySession,
+  destroyAllSessions,
   sendOtpEmail,
   SESSION_EXPIRY_MS,
 }
