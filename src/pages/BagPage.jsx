@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { BagIcon } from '../components/icons'
 import Price from '../components/Price'
 import CheckoutOverlay from '../components/checkout/CheckoutOverlay'
+import { useSiteConfig } from '../hooks/useSiteConfig'
 
 const primaryLink =
   'inline-flex items-center h-11 px-6 rounded-md bg-cta text-on-cta text-sm font-semibold tracking-[0.02em] shadow-[0_6px_16px_-6px_rgb(0_0_0/0.35)] hover:bg-cta-hover active:translate-y-px active:shadow-none transition-[background-color,box-shadow,transform] duration-300'
@@ -12,6 +13,14 @@ const primaryLink =
 export default function BagPage() {
   const { items, updateQty, removeItem, itemCount, total } = useBag()
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const { config } = useSiteConfig()
+  // Chose "keep the bag icon visible, disable the action" over hiding the
+  // icon entirely: the spec requires browsing/adding-to-bag to keep working
+  // when checkout is off, and a visitor needs the bag icon reachable to see
+  // what they've collected even though they can't send the order yet.
+  // Missing/loading config defaults to enabled so the button doesn't flash
+  // disabled before the first fetch resolves.
+  const checkoutEnabled = config?.checkout_enabled !== false
 
   return (
     <>
@@ -103,13 +112,21 @@ export default function BagPage() {
               </span>
             </div>
 
-            <button
-              onClick={() => setCheckoutOpen(true)}
-              className="w-full h-13 sm:h-12 rounded-md bg-cta text-on-cta text-sm font-semibold tracking-[0.02em] shadow-[0_6px_16px_-6px_rgb(0_0_0/0.35)] hover:bg-cta-hover hover:shadow-[0_8px_20px_-6px_rgb(0_0_0/0.4)] active:translate-y-px active:shadow-none transition-[background-color,box-shadow,transform] duration-300"
-            >
-              Send order
-            </button>
-            <p className="mt-3 text-center text-xs text-muted">Pay by bank transfer — details on the next screen.</p>
+            {checkoutEnabled ? (
+              <>
+                <button
+                  onClick={() => setCheckoutOpen(true)}
+                  className="w-full h-13 sm:h-12 rounded-md bg-cta text-on-cta text-sm font-semibold tracking-[0.02em] shadow-[0_6px_16px_-6px_rgb(0_0_0/0.35)] hover:bg-cta-hover hover:shadow-[0_8px_20px_-6px_rgb(0_0_0/0.4)] active:translate-y-px active:shadow-none transition-[background-color,box-shadow,transform] duration-300"
+                >
+                  Send order
+                </button>
+                <p className="mt-3 text-center text-xs text-muted">Pay by bank transfer — details on the next screen.</p>
+              </>
+            ) : (
+              <div className="w-full h-13 sm:h-12 rounded-md bg-surface border border-line flex items-center justify-center text-sm font-medium text-muted">
+                Ordering currently unavailable
+              </div>
+            )}
           </div>
         </div>
       )}

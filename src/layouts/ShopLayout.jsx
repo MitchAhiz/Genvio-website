@@ -2,7 +2,8 @@ import { useEffect } from 'react'
 import { Outlet, Navigate, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import { useTheme } from '../hooks/useTheme'
-import { isSection, getLastSection, getSection, rememberSection, sectionPath } from '../sections'
+import { useSiteConfig } from '../hooks/useSiteConfig'
+import { isSection, getLastSection, getSection, getVisibleSections, rememberSection, sectionPath } from '../sections'
 
 // Wraps every /shop/* route. The theme is derived from the :section param;
 // section-less routes (the shared bag) keep the last visited section's theme.
@@ -27,14 +28,23 @@ export default function ShopLayout() {
   )
 }
 
-// /shop → the last section visited (Women by default).
+// /shop → the last section visited (Women by default), or the first visible
+// section if that one has since been hidden.
 export function ShopIndexRedirect() {
-  return <Navigate to={sectionPath(getLastSection())} replace />
+  const { config } = useSiteConfig()
+  const visible = getVisibleSections(config?.section_visibility)
+  const last = getLastSection()
+  const fallback = visible.some((s) => s.key === last) ? last : visible[0]?.key
+  return <Navigate to={fallback ? sectionPath(fallback) : '/'} replace />
 }
 
-// /shop/:section — rejects unknown sections.
+// /shop/:section — rejects unknown or admin-hidden sections.
 export function SectionGuard() {
   const { section } = useParams()
-  if (!isSection(section)) return <Navigate to={sectionPath(getLastSection())} replace />
+  const { config } = useSiteConfig()
+  const visible = getVisibleSections(config?.section_visibility)
+  if (!isSection(section) || !visible.some((s) => s.key === section)) {
+    return <Navigate to={visible[0] ? sectionPath(visible[0].key) : '/'} replace />
+  }
   return <Outlet />
 }

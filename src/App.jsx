@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, Link, useParams } from 'react-router-dom'
 import { BagProvider } from './hooks/useBag'
+import { SiteConfigProvider, useSiteConfig } from './hooks/useSiteConfig'
 import { getProductBySlug } from './api/products'
 import { productPath, sectionPath, getLastSection } from './sections'
 import ShopLayout, { ShopIndexRedirect, SectionGuard } from './layouts/ShopLayout'
@@ -9,6 +10,7 @@ import CataloguePage from './pages/CataloguePage'
 import ProductPage from './pages/ProductPage'
 import BagPage from './pages/BagPage'
 import WholesalePage from './pages/WholesalePage'
+import MaintenancePage from './pages/MaintenancePage'
 import AdminPage from './pages/AdminPage'
 import AdminProducts from './pages/admin/AdminProducts'
 import AdminOrders from './pages/admin/AdminOrders'
@@ -40,12 +42,29 @@ function NotFound() {
   )
 }
 
+// Maintenance mode blocks every public route but never /admin — that's how
+// the admin turns it back off.
+function MaintenanceGate({ children }) {
+  const { config, isAdmin } = useSiteConfig()
+  if (!isAdmin && config?.maintenance_mode) return <MaintenancePage />
+  return children
+}
+
+// Direct nav to /wholesale when the admin has hidden it.
+function WholesaleGuard() {
+  const { config } = useSiteConfig()
+  if (config?.section_visibility?.wholesale === false) return <Navigate to="/" replace />
+  return <WholesalePage />
+}
+
 export default function App() {
   return (
     <BagProvider>
+    <SiteConfigProvider>
+    <MaintenanceGate>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/wholesale" element={<WholesalePage />} />
+        <Route path="/wholesale" element={<WholesaleGuard />} />
         <Route path="/admin" element={<AdminPage />}>
           <Route index element={<Navigate to="/admin/products" replace />} />
           <Route path="products" element={<AdminProducts />} />
@@ -70,6 +89,8 @@ export default function App() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
+    </MaintenanceGate>
+    </SiteConfigProvider>
     </BagProvider>
   )
 }

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTheme } from '../hooks/useTheme'
+import { useSiteConfig } from '../hooks/useSiteConfig'
 import { ArrowRightIcon } from '../components/icons'
 
 // Placeholder photography — swap for the client's own campaign imagery.
@@ -25,6 +26,10 @@ const DOORS = [
 
 export default function LandingPage() {
   useTheme('gate')
+  const { config } = useSiteConfig()
+  const doors = config?.section_visibility?.wholesale === false
+    ? DOORS.filter((d) => d.to !== '/wholesale')
+    : DOORS
   useEffect(() => {
     document.title = 'Genvio Exotic Apparel'
   }, [])
@@ -41,7 +46,7 @@ export default function LandingPage() {
       </header>
 
       <div className="gate flex-1 flex flex-col md:flex-row gap-px bg-line">
-        {DOORS.map((door) => (
+        {doors.map((door) => (
           <Link
             key={door.to}
             to={door.to}

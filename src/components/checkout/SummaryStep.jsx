@@ -1,6 +1,7 @@
 import Price from '../Price'
 import { formatPrice } from '../../api/products'
 import { formatNgPhone } from '../../utils/phone'
+import { useSiteConfig } from '../../hooks/useSiteConfig'
 
 const primary =
   'w-full h-12 rounded-md bg-cta text-on-cta text-sm font-semibold tracking-[0.02em] shadow-[0_6px_16px_-6px_rgb(0_0_0/0.35)] hover:bg-cta-hover active:translate-y-px active:shadow-none transition-[background-color,box-shadow,transform] duration-300'
@@ -21,6 +22,9 @@ export function AddressLines({ address }) {
 
 export default function SummaryStep({ items, total, details, onBack, onEditDetails, onContinue }) {
   const count = items.reduce((n, i) => n + i.qty, 0)
+  const { config } = useSiteConfig()
+  const minOrder = config?.min_order_amount ?? null
+  const belowMin = minOrder != null && total < minOrder
   return (
     <div className="px-5 sm:px-8 pb-6 sm:pb-8">
       <ul className="divide-y divide-line border-y border-line">
@@ -73,11 +77,22 @@ export default function SummaryStep({ items, total, details, onBack, onEditDetai
         </button>
       </div>
 
+      {belowMin && (
+        <p className="mt-6 text-sm text-center text-danger">
+          Minimum order is {formatPrice(minOrder)} — add {formatPrice(minOrder - total)} more to continue.
+        </p>
+      )}
+
       <div className="mt-8 flex gap-3">
         <button type="button" onClick={onBack} className={quiet}>
           Back
         </button>
-        <button type="button" onClick={onContinue} className={primary}>
+        <button
+          type="button"
+          onClick={onContinue}
+          disabled={belowMin}
+          className={`${primary} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-cta`}
+        >
           Continue to payment
         </button>
       </div>

@@ -16,6 +16,14 @@ export function getSection(key) {
   return SECTIONS.find((s) => s.key === key) || SECTIONS[0]
 }
 
+// Filters by admin-configured section_visibility. Missing/loading config
+// defaults to everything visible rather than hiding sections while the
+// config fetch is still in flight.
+export function getVisibleSections(sectionVisibility) {
+  if (!sectionVisibility) return SECTIONS
+  return SECTIONS.filter((s) => sectionVisibility[s.key] !== false)
+}
+
 const STORAGE_KEY = 'genvio:last-section'
 
 export function getLastSection() {
