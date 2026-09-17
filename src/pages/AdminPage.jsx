@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import AdminLayout from './admin/AdminLayout'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+// `??` (not `||`) — see the same note in src/api/client.js.
+const API = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 
 function api(path, options = {}) {
   return fetch(`${API}${path}`, { credentials: 'include', ...options })

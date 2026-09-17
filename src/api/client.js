@@ -1,4 +1,8 @@
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+// `??` (not `||`) so an explicitly empty VITE_API_URL — used in production to
+// route through the same-origin Vercel proxy in vercel.json, keeping the
+// session cookie first-party for Safari — isn't treated as "unset" and
+// silently overridden by the localhost fallback.
+export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 
 // VITE_MOCK_API=1 serves local fixtures instead of the backend (dev only).
 const USE_MOCK = import.meta.env.DEV && import.meta.env.VITE_MOCK_API === '1'
