@@ -994,5 +994,100 @@ category pills/filter still work per section.
 
 ---
 
-*End of handoff. Proceed to `00-INDEX.md` for the task list, next up
-`TASK-10-admin-wholesale-tab.md`.*
+## 21. Task 13 — Deployment (Complete, with open items)
+
+Live: frontend https://genvio-website.vercel.app, backend
+https://genvio-backend.onrender.com (Frankfurt, free tier), database
+Supabase `genvio-db` (eu-west-1). Brevo API key and Supabase DB password
+rotated. All migrations verified directly against the live instance
+(`site_config`, `categories`, `activity_log`, `config_change_history`,
+`products.category_id`, `orders.notes` all present). Full smoke test
+passed on public site and all 5 admin tabs, including a real order
+placed end-to-end (`GEA-20260917-001`) and the PIN save/lookup
+round-trip.
+
+**Real bug found and fixed during this task** (not a "files to not
+touch" violation — foundational enough to block the smoke test
+otherwise): `server/src/routes/auth.js`'s session cookie was
+`sameSite: 'lax'`, which is silently dropped on every cross-site fetch
+now that the frontend (Vercel) and backend (Render) are different
+sites in production. OTP login succeeded but every subsequent admin
+API call came back 401. Fixed to `sameSite: 'none'` in production
+(kept `lax` for local dev), which requires `secure: true` —
+confirmed already present and conditioned on
+`NODE_ENV === 'production'`. `httpOnly: true` and a 30-day
+`maxAge` (`SESSION_EXPIRY_MS`) were both already correct and
+unconditional. Commit `ab9a1c0`, pushed and auto-deployed.
+
+**Supabase's "currently paused" assumption (Section 6/11, written
+earlier in the project) was stale by the time Task 13 ran** — the
+project was already `Healthy`/active, no resume step was needed.
+Checked for a hidden cause (webhooks, integrations, connection logs):
+none configured, and Postgres connection logging is off by default so
+there's no audit trail either way. The simple explanation holds up
+against the project's own Activity Log timeline: Tasks 06–12 had the
+DB under continuous live testing, with the last recorded action only
+~10 hours before Task 13 started — nowhere near Supabase's 7-day
+auto-pause threshold. Nothing suspicious, just a stale note.
+
+### Backlog — not fixed, tracked here so nothing gets lost
+
+**Bug — Settings tab text inputs don't support Ctrl+A select-all**
+(Account Name / Bank Name / Account Number fields in
+`AdminSettings.jsx`'s Payment & Banking card, found during Task 13's
+placeholder-bank-details entry): pressing Ctrl+A then typing appends
+to the existing value instead of replacing it — repro'd 3 times in a
+row across all three fields. Workaround used during testing:
+triple-click to select, then type. This will bite real staff editing
+bank details later (a half-replaced account number is a real-money
+mistake), so it's a genuine bug, not just a testing footnote. Root
+cause not yet investigated — worth checking whether it's a
+custom-masked-input quirk (the Account Number field renders via a
+reveal-toggle component, but Account Name/Bank Name are plain text
+inputs and have the same bug, so it's likely something broader, e.g.
+a global keydown handler intercepting Ctrl+A).
+
+**Cosmetic — Settings tab's Change History list is stale after a
+save.** Saving any Payment & Banking field updates
+`config_change_history` correctly (verified directly via the API),
+but the on-screen list under "Change History" doesn't refetch — it
+only shows the new entry after a manual page reload. Low priority,
+data integrity isn't affected, just a display lag.
+
+**Consolidated data/cleanup backlog** (merges three items previously
+scattered across handoff sections):
+1. **Wholesale drag-to-reorder** has only been verified with mouse
+   drag in a desktop browser — real-device touch-drag has never been
+   tested (open since Task 10).
+2. **3 products have lost category data**: Silk Wrap Blouse, Test
+   Dress, Another Blouse. Still needs a decision — re-tag from memory
+   vs. manual re-entry — before these can be trusted in category
+   filters/analytics.
+3. **Test/dummy data needs cleanup before real go-live**, now two
+   generations of it:
+   - Original flagged test/dummy bank data in production tables
+     (flagged since Task 11)
+   - The placeholder bank details entered during Task 13's smoke test
+     (`"PLACEHOLDER - REPLACE BEFORE LAUNCH"` / `"PLACEHOLDER BANK"` /
+     `"0000000000"`) — **currently live on the public checkout page**,
+     must be swapped for real values before any real customer reaches
+     checkout (blocking item, see below)
+   - Also: the smoke-test order itself (`GEA-20260917-001`, phone
+     `08012345678`, customer "Smoke Test Customer") is real data sitting
+     in the live `orders`/`customers` tables and should be deleted (or
+     explicitly kept as a reference order) before go-live.
+
+### Still blocking real go-live
+
+- **Real bank account name/number/bank name** — user will provide
+  separately; must be entered via the live admin Settings tab (not
+  seeded directly) before removing the placeholder values above.
+- **Render free-tier cold start** (30–50s after inactivity) — decided
+  to accept as-is for now, no keep-alive service, no plan upgrade.
+  Revisit later if it becomes a real user complaint.
+
+---
+
+*End of handoff. Task 13 (deployment) is functionally complete — see
+Section 21 for what's still open before this can go live for real
+customers.*
