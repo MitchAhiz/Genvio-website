@@ -56,7 +56,10 @@ router.post('/auth/verify-otp', (req, res, next) => {
     const token = createSession(normalizedEmail)
     res.cookie('admin_session', token, {
       httpOnly: true,
-      sameSite: 'lax',
+      // Frontend (Vercel) and backend (Render) are different sites in
+      // production, so the cookie must be SameSite=None to survive
+      // cross-site fetch — browsers require Secure whenever None is used.
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: SESSION_EXPIRY_MS,
       secure: process.env.NODE_ENV === 'production',
     })
