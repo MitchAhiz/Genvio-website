@@ -56,7 +56,7 @@ function orderEmailHtml(order) {
     <p style="color:#666;">Placed ${escapeHtml(formatDateTime(order.createdAt))}</p>
 
     <h3>Delivery details</h3>
-    <p><strong>${escapeHtml(order.customer.name)}</strong></p>
+    <p><strong>${escapeHtml(order.address?.recipientName || order.customer.name)}</strong></p>
     <p>${escapeHtml(order.customer.phone)}</p>
     <p>${escapeHtml(formatAddress(order.address))}</p>
 

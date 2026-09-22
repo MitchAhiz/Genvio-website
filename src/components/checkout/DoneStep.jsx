@@ -31,8 +31,22 @@ export default function DoneStep({ order, setOrder, saveState, active, onDone })
 
   if (!order) return null
 
+  // Delivery details lock once the shop confirms the payment (confirmed and
+  // later): the Done step is shown while the order is still pending_payment,
+  // so customers can fix their details in that window. After that the server
+  // rejects the edit and only this plain-text note is shown.
+  const locked = order.status !== 'pending_payment'
+  const recipientName = order.address?.recipientName || order.customer.name
+
   const startEdit = () => {
-    setDraft({ name: order.customer.name, address: { ...order.address } })
+    setDraft({
+      name: recipientName,
+      address: {
+        street: (order.address && typeof order.address === 'object' ? order.address.street : '') ?? '',
+        city: (order.address && typeof order.address === 'object' ? order.address.city : '') ?? '',
+        state: (order.address && typeof order.address === 'object' ? order.address.state : '') ?? '',
+      },
+    })
     setError('')
     setEditing(true)
   }
@@ -105,7 +119,7 @@ export default function DoneStep({ order, setOrder, saveState, active, onDone })
             </h3>
             <p className="mt-0.5 text-xs text-muted">This is what the courier will see.</p>
           </div>
-          {!editing && (
+          {!editing && !locked && (
             <button
               type="button"
               onClick={startEdit}
@@ -176,10 +190,14 @@ export default function DoneStep({ order, setOrder, saveState, active, onDone })
           </div>
         ) : (
           <div className="mt-3 text-sm text-ink leading-relaxed">
-            <p className="font-medium">{order.customer.name}</p>
+            <p className="font-medium">{recipientName}</p>
             <AddressLines address={order.address} />
             <p className="text-muted tabular-nums mt-0.5">{formatNgPhone(order.customer.phone)}</p>
           </div>
+        )}
+
+        {!editing && locked && (
+          <p className="mt-3 text-xs text-muted">Need to change delivery details? Contact us.</p>
         )}
       </section>
 
