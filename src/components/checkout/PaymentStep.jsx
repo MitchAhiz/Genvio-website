@@ -56,6 +56,7 @@ export default function PaymentStep({ items, total, details, active, onBack, onS
       const order = await createOrder({
         phone: normalizeNgPhone(details.phone),
         name: details.name.trim(),
+        deliveryZone: details.deliveryZone || null,
         address: {
           street: details.address.street.trim(),
           city: details.address.city.trim(),

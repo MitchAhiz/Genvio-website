@@ -22,8 +22,8 @@ export function declineSaveDetails({ phone, reference }) {
   return apiFetch('/api/customers/decline-save', jsonOptions('POST', { phone, reference }))
 }
 
-export function createOrder({ phone, name, address, items, total }) {
-  return apiFetch('/api/orders', jsonOptions('POST', { phone, name, address, items, total }))
+export function createOrder({ phone, name, address, items, total, deliveryZone }) {
+  return apiFetch('/api/orders', jsonOptions('POST', { phone, name, address, items, total, deliveryZone }))
 }
 
 // Correct the delivery details (name + address) the courier will see.

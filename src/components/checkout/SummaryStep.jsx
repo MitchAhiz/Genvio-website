@@ -20,11 +20,21 @@ export function AddressLines({ address }) {
   )
 }
 
-export default function SummaryStep({ items, total, details, onBack, onEditDetails, onContinue }) {
+export default function SummaryStep({
+  items,
+  subtotal,
+  deliveryFee,
+  deliveryLabel,
+  total,
+  details,
+  onBack,
+  onEditDetails,
+  onContinue,
+}) {
   const count = items.reduce((n, i) => n + i.qty, 0)
   const { config } = useSiteConfig()
   const minOrder = config?.min_order_amount ?? null
-  const belowMin = minOrder != null && total < minOrder
+  const belowMin = minOrder != null && subtotal < minOrder
   return (
     <div className="px-5 sm:px-8 pb-6 sm:pb-8">
       <ul className="divide-y divide-line border-y border-line">
@@ -50,13 +60,27 @@ export default function SummaryStep({ items, total, details, onBack, onEditDetai
         ))}
       </ul>
 
-      <div className="mt-4 flex items-baseline justify-between">
-        <span className="text-sm text-muted">
-          Total · {count} {count === 1 ? 'item' : 'items'}
-        </span>
-        <span className="font-display text-2xl text-ink">
-          <Price amount={total} />
-        </span>
+      <div className="mt-4 space-y-1.5">
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm text-muted">
+            Subtotal · {count} {count === 1 ? 'item' : 'items'}
+          </span>
+          <span className="text-sm text-ink tabular-nums">
+            <Price amount={subtotal} />
+          </span>
+        </div>
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm text-muted">{deliveryLabel}</span>
+          <span className="text-sm text-ink tabular-nums">
+            {deliveryFee > 0 ? <Price amount={deliveryFee} /> : 'Free'}
+          </span>
+        </div>
+        <div className="flex items-baseline justify-between pt-1.5">
+          <span className="text-sm font-medium text-ink">Total</span>
+          <span className="font-display text-2xl text-ink">
+            <Price amount={total} />
+          </span>
+        </div>
       </div>
 
       <div className="mt-6 pt-5 border-t border-line flex items-start justify-between gap-4">
@@ -79,7 +103,7 @@ export default function SummaryStep({ items, total, details, onBack, onEditDetai
 
       {belowMin && (
         <p className="mt-6 text-sm text-center text-danger">
-          Minimum order is {formatPrice(minOrder)} — add {formatPrice(minOrder - total)} more to continue.
+          Minimum order is {formatPrice(minOrder)} — add {formatPrice(minOrder - subtotal)} more to continue.
         </p>
       )}
 

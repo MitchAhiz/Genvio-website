@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBag } from '../../hooks/useBag'
+import { useSiteConfig } from '../../hooks/useSiteConfig'
 import { CloseIcon } from '../icons'
 import DetailsStep from './DetailsStep'
 import SummaryStep from './SummaryStep'
 import PaymentStep from './PaymentStep'
 import DoneStep from './DoneStep'
+import { deliveryFeeFor, deliveryLabelFor } from '../../utils/delivery'
 
 const STEPS = [
   { key: 'details', label: 'Details', title: 'Your details' },
@@ -14,7 +16,12 @@ const STEPS = [
   { key: 'done', label: 'Done', title: 'Order submitted' },
 ]
 
-const EMPTY_DETAILS = { phone: '', name: '', address: { street: '', city: '', state: '' } }
+const EMPTY_DETAILS = {
+  phone: '',
+  name: '',
+  deliveryZone: '',
+  address: { street: '', city: '', state: '' },
+}
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -28,6 +35,7 @@ const DISMISS_VELOCITY = 0.6 // px per ms
 // modal from sm up. Themed by whatever section the bag was opened from.
 export default function CheckoutOverlay({ onClose }) {
   const { items, total, clearBag } = useBag()
+  const { config } = useSiteConfig()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [details, setDetails] = useState(EMPTY_DETAILS)
@@ -40,7 +48,17 @@ export default function CheckoutOverlay({ onClose }) {
 
   // After submission the bag is cleared; later steps read from the order.
   const lineItems = order ? order.items.map((i, idx) => ({ ...i, id: `${i.productId}-${idx}` })) : items
-  const lineTotal = order ? order.total : total
+  const productSubtotal = order ? order.total - (order.address?.deliveryFee || 0) : total
+
+  // Once an order exists its address carries the delivery choice the backend
+  // priced and charged; before that, price from the live config the same way
+  // the backend will.
+  const deliverySource = order
+    ? { deliveryZone: order.address?.deliveryZone, address: { state: order.address?.state } }
+    : details
+  const deliveryFee = order ? order.address?.deliveryFee || 0 : deliveryFeeFor(details, config)
+  const deliveryLabel = deliveryLabelFor(deliverySource)
+  const grandTotal = productSubtotal + deliveryFee
 
   const bodyRef = useRef(null)
   const panelRefs = useRef([])
@@ -259,7 +277,10 @@ export default function CheckoutOverlay({ onClose }) {
             <section {...panelProps(1)}>
               <SummaryStep
                 items={lineItems}
-                total={lineTotal}
+                subtotal={productSubtotal}
+                deliveryFee={deliveryFee}
+                deliveryLabel={deliveryLabel}
+                total={grandTotal}
                 details={details}
                 onBack={() => setStep(0)}
                 onEditDetails={() => setStep(0)}
@@ -269,7 +290,7 @@ export default function CheckoutOverlay({ onClose }) {
             <section {...panelProps(2)}>
               <PaymentStep
                 items={lineItems}
-                total={lineTotal}
+                total={grandTotal}
                 details={details}
                 active={step === 2}
                 onBack={() => setStep(1)}

@@ -30,6 +30,9 @@ const VALIDATORS = {
   bank_account_name: (v) => (typeof v === 'string' && v.trim() ? { ok: true, value: v.trim().slice(0, 200) } : { ok: false }),
   bank_account_number: (v) => (typeof v === 'string' && v.trim() ? { ok: true, value: v.trim().slice(0, 40) } : { ok: false }),
   bank_name: (v) => (typeof v === 'string' && v.trim() ? { ok: true, value: v.trim().slice(0, 200) } : { ok: false }),
+  delivery_mainland_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
+  delivery_island_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
+  delivery_interstate_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
 }
 
 // Public. Bank details live in site_config so the client can change them from
@@ -59,6 +62,9 @@ router.get('/config/site', async (_req, res, next) => {
       section_visibility: config.section_visibility,
       checkout_enabled: config.checkout_enabled,
       min_order_amount: config.min_order_amount,
+      delivery_mainland_fee: config.delivery_mainland_fee,
+      delivery_island_fee: config.delivery_island_fee,
+      delivery_interstate_fee: config.delivery_interstate_fee,
     })
   } catch (err) {
     next(err)

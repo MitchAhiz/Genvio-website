@@ -4,6 +4,7 @@ import { useToast } from '../../hooks/useToast'
 import { CardSkeleton } from '../../components/admin/Skeleton'
 import PaymentSettingsCard from '../../components/admin/PaymentSettingsCard'
 import SiteControlsCard from '../../components/admin/SiteControlsCard'
+import DeliveryFeesCard from '../../components/admin/DeliveryFeesCard'
 import ActivityLogPanel from '../../components/admin/ActivityLogPanel'
 import SessionSecurityCard from '../../components/admin/SessionSecurityCard'
 
@@ -82,6 +83,7 @@ export default function AdminSettings() {
     <div className="space-y-4">
       <PaymentSettingsCard config={config} onSaved={setConfig} />
       <SiteControlsCard config={config} onSaved={setConfig} />
+      <DeliveryFeesCard config={config} onSaved={setConfig} />
       <NotificationsCard config={config} onSaved={setConfig} />
       <ActivityLogPanel />
       <SessionSecurityCard />

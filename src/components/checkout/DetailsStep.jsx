@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import Field from './Field'
 import PinInput from './PinInput'
+import TabGroup from './TabGroup'
 import { lookupCustomer, verifyPin } from '../../api/orders'
 import { normalizeNgPhone, formatNgPhone, digitsOnly } from '../../utils/phone'
 import { NIGERIAN_STATES } from '../../data/nigerianStates'
 import { CheckIcon } from '../icons'
+
+const LAGOS_ZONES = [
+  { value: 'mainland', label: 'Lagos Mainland' },
+  { value: 'island', label: 'Lagos Island' },
+]
 
 const primary =
   'w-full h-12 rounded-md bg-cta text-on-cta text-sm font-semibold tracking-[0.02em] shadow-[0_6px_16px_-6px_rgb(0_0_0/0.35)] hover:bg-cta-hover active:translate-y-px active:shadow-none disabled:bg-transparent disabled:text-muted disabled:border disabled:border-line disabled:shadow-none disabled:cursor-not-allowed transition-[background-color,border-color,color,box-shadow,transform] duration-300'
@@ -16,6 +22,7 @@ function validate(d) {
   if (d.address.street.trim().length < 3) errors.street = 'Enter your street address'
   if (d.address.city.trim().length < 2) errors.city = 'Enter your city'
   if (!d.address.state) errors.state = 'Choose your state'
+  if (d.address.state === 'Lagos' && !d.deliveryZone) errors.deliveryZone = 'Choose Lagos Mainland or Lagos Island'
   return errors
 }
 
@@ -219,12 +226,6 @@ export default function DetailsStep({ details, setDetails, onContinue }) {
         </p>
       )}
 
-      <div className="mt-7 rounded-md border border-line bg-ground px-4 py-3">
-        <p className="text-[13px] leading-relaxed text-ink-soft">
-          These details will be shared with our logistics partner for delivery.
-        </p>
-      </div>
-
       <div className="mt-5 space-y-5">
         <Field
           label="Full name"
@@ -239,6 +240,19 @@ export default function DetailsStep({ details, setDetails, onContinue }) {
           revealed={revealed}
           revealIndex={0}
         />
+      </div>
+
+      <p className="mt-6 text-xs text-muted">
+        (Delivery fees for Lagos Mainland, Lagos Island, and interstate delivery apply — set by admin)
+      </p>
+
+      <div className="mt-3 rounded-md border border-line bg-ground px-4 py-3">
+        <p className="text-[13px] leading-relaxed text-ink-soft">
+          These details will be shared with our logistics partner for delivery.
+        </p>
+      </div>
+
+      <div className="mt-5 space-y-5">
         <Field
           label="Delivery address"
           name="street"
@@ -277,8 +291,10 @@ export default function DetailsStep({ details, setDetails, onContinue }) {
             data-empty={details.address.state ? undefined : 'true'}
             value={details.address.state}
             onChange={(e) => {
-              setAddress({ state: e.target.value })
+              const state = e.target.value
+              setAddress({ state })
               clearError('state')
+              if (state !== 'Lagos' && details.deliveryZone) set({ deliveryZone: '' })
             }}
             error={errors.state}
             revealed={revealed}
@@ -292,6 +308,19 @@ export default function DetailsStep({ details, setDetails, onContinue }) {
             ))}
           </Field>
         </div>
+
+        {details.address.state === 'Lagos' && (
+          <TabGroup
+            label="Delivery zone"
+            error={errors.deliveryZone}
+            value={details.deliveryZone}
+            options={LAGOS_ZONES}
+            onChange={(v) => {
+              set({ deliveryZone: v })
+              clearError('deliveryZone')
+            }}
+          />
+        )}
       </div>
 
       <div className="mt-8">
