@@ -9,15 +9,19 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:apply": "node scripts/apply-migrations.js",
+    "storage:create-bucket": "node scripts/create-storage-bucket.js",
     "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
+    "@supabase/supabase-js": "^2.117.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "file-type": "^22.1.1",
+    "multer": "^2.4.0"
   },
   "devDependencies": {
     "prisma": "^6.9.0"

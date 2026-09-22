@@ -12,6 +12,8 @@ const configRoutes = require('./routes/config')
 const categoryRoutes = require('./routes/categories')
 const activityRoutes = require('./routes/activity')
 const analyticsRoutes = require('./routes/analytics')
+const receiptRoutes = require('./routes/receipts')
+const { releaseExpiredReservations, expireStalePendingPayment } = require('./services/reservations')
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -42,6 +44,7 @@ app.use('/api', configRoutes)
 app.use('/api', categoryRoutes)
 app.use('/api', activityRoutes)
 app.use('/api', analyticsRoutes)
+app.use('/api', receiptRoutes)
 
 app.use((err, _req, res, _next) => {
   console.error(err.stack)
@@ -51,3 +54,14 @@ app.use((err, _req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
 })
+
+// Reservation release does not depend on this timer alone — both functions
+// also run lazily (on receipt upload / order creation) so correctness holds
+// even if this process sleeps or restarts before a tick. This is a genuine
+// periodic DB write; see AGENT_RULES.md before changing its cadence or
+// running this server against the shared database ad hoc.
+const RESERVATION_SWEEP_MS = 15 * 60 * 1000
+setInterval(() => {
+  releaseExpiredReservations().catch((err) => console.error('[reservations] sweep failed:', err))
+  expireStalePendingPayment().catch((err) => console.error('[reservations] pending_payment expiry failed:', err))
+}, RESERVATION_SWEEP_MS).unref()

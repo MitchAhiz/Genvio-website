@@ -62,6 +62,13 @@ const DEFAULTS = {
   delivery_mainland_fee: 0,
   delivery_island_fee: 0,
   delivery_interstate_fee: 0,
+  // Hours a receipt-uploaded order holds its stock reservation before the
+  // sweep in reservations.js releases it and marks the order expired.
+  reservation_hours: 48,
+  // Hours a pending_payment order (no receipt uploaded at all) is kept
+  // before being marked expired. Holds no stock reservation, so this is a
+  // status-only cleanup.
+  pending_payment_expiry_hours: 24,
   notification_email: () => (process.env.ADMIN_EMAIL || '').trim(),
   bank_account_name: () => (process.env.BANK_ACCOUNT_NAME || '').trim(),
   bank_account_number: () => (process.env.BANK_ACCOUNT_NUMBER || '').trim(),

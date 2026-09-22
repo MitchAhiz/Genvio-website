@@ -1,5 +1,6 @@
 const prisma = require('../db')
 const { upsertCustomer } = require('./customers')
+const { releaseExpiredReservations } = require('./reservations')
 
 const ORDER_STATUSES = ['pending_payment', 'confirmed', 'processing', 'shipped', 'delivered']
 
@@ -50,6 +51,11 @@ function saveStateFor(customer) {
 }
 
 async function createOrder({ phone, name, address, items, total }) {
+  // Keep stock numbers fresh at the moment a new order is placed — see
+  // reservations.js and AGENT_RULES.md; correctness never depends solely on
+  // the periodic sweep having fired.
+  await releaseExpiredReservations()
+
   const customer = await upsertCustomer({ phone, name, address })
   const saveState = saveStateFor(customer)
 

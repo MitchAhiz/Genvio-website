@@ -72,6 +72,154 @@ function orderEmailHtml(order) {
 // Notifies whoever is currently configured as the order-alert recipient.
 // Reads notification_email fresh from the DB on every send so a change in
 // Settings takes effect on the very next order, not just after a redeploy.
+// Brevo does not publish an exact attachment-size limit in its API reference
+// or transactional docs (checked at the time this was written — worth
+// reconfirming in the Brevo dashboard/support if this ever bounces). This is
+// a deliberately conservative cutoff: most third-party ESP limits for a
+// combined message + attachments sit around 10MB, and base64 encoding adds
+// ~33% overhead, so capping the raw file at 7MB keeps the encoded payload
+// (plus the HTML body) safely under that.
+const MAX_EMAIL_ATTACHMENT_BYTES = 7 * 1024 * 1024
+
+function frontendOrderLink(orderId) {
+  const base = (process.env.FRONTEND_URL || 'https://genvio-website.vercel.app').replace(/\/$/, '')
+  return `${base}/admin?tab=orders&order=${orderId}`
+}
+
+async function sendBrevoEmail({ to, subject, html, attachment }) {
+  if (!process.env.BREVO_API_KEY) {
+    console.error(`[mailer] BREVO_API_KEY is not set — skipping "${subject}"`)
+    return { sent: false }
+  }
+  const res = await fetch(BREVO_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json',
+      'api-key': process.env.BREVO_API_KEY,
+    },
+    body: JSON.stringify({
+      sender: { name: 'Genvio Orders', email: process.env.MAIL_FROM || 'exoticapparels0105@gmail.com' },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      ...(attachment ? { attachment: [attachment] } : {}),
+    }),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Brevo responded ${res.status}: ${body}`)
+  }
+  return { sent: true }
+}
+
+function itemsTable(items) {
+  const rows = items
+    .map(
+      (i) =>
+        `<tr><td>${escapeHtml(i.name || i.productId)}</td><td>${escapeHtml(i.colour || '')}</td><td>${escapeHtml(i.size || '')}</td><td>${i.qty}</td><td>${formatNaira(i.unitPrice)}</td></tr>`
+    )
+    .join('')
+  return `<table border="1" cellpadding="6" cellspacing="0"><thead><tr><th>Item</th><th>Colour</th><th>Size</th><th>Qty</th><th>Unit price</th></tr></thead><tbody>${rows}</tbody></table>`
+}
+
+// Admin alert: a receipt was uploaded and needs manual verification.
+// Attaches the file when it's under MAX_EMAIL_ATTACHMENT_BYTES; otherwise
+// sends the admin link with a note that the file was too large to attach —
+// never blocks on attachment size.
+async function sendReceiptUploadedEmail(order, { buffer, mime, filename, isDuplicate }) {
+  const recipient = await getConfig('notification_email')
+  if (!recipient) {
+    console.error(`[mailer] no notification_email configured — skipping receipt alert for ${order.reference}`)
+    return
+  }
+
+  const tooLarge = buffer.length > MAX_EMAIL_ATTACHMENT_BYTES
+  const attachment = tooLarge ? undefined : { name: filename, content: buffer.toString('base64') }
+
+  const html = `
+    <h2>Receipt uploaded: Order ${escapeHtml(order.reference)}</h2>
+    ${isDuplicate ? '<p style="color:#b91c1c;font-weight:bold;">⚠ This receipt file matches one already uploaded to a different order — check for a possible duplicate/reused receipt.</p>' : ''}
+    <p><strong>${escapeHtml(order.customer.name)}</strong></p>
+    <p>${escapeHtml(order.customer.phone)}${order.customer.isWhatsapp ? ' (on WhatsApp)' : ''}</p>
+    <p>${escapeHtml(order.customer.email || '')}</p>
+    <p>Uploaded ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
+    <h3>Order contents</h3>
+    ${itemsTable(order.items)}
+    <p><strong>Total expected: ${formatNaira(order.total)}</strong></p>
+    ${tooLarge ? `<p><em>The receipt file (${(buffer.length / 1024 / 1024).toFixed(1)}MB) was too large to attach — view it in the admin instead.</em></p>` : ''}
+    <p><a href="${frontendOrderLink(order.id)}">Open this order in the admin →</a></p>
+  `
+
+  try {
+    await sendBrevoEmail({
+      to: recipient,
+      subject: `Receipt uploaded: Order ${order.reference} (${formatNaira(order.total)})`,
+      html,
+      attachment,
+    })
+  } catch (err) {
+    console.error(`[mailer] failed to send receipt-uploaded alert for ${order.reference}:`, err)
+    await logActivity('order.notification_failed', 'order', order.id, { type: 'receipt_uploaded', error: String(err.message || err) })
+  }
+}
+
+async function sendReceiptReceivedEmail(order) {
+  if (!order.customer.email) return
+  try {
+    await sendBrevoEmail({
+      to: order.customer.email,
+      subject: `We've received your receipt for order ${order.reference}`,
+      html: `<p>Thanks — we've received your receipt for order <strong>${escapeHtml(order.reference)}</strong>. We're confirming your transfer and will update you by WhatsApp/phone and email once it's verified.</p>`,
+    })
+  } catch (err) {
+    console.error(`[mailer] failed to send receipt-received email for ${order.reference}:`, err)
+    await logActivity('order.notification_failed', 'order', order.id, { type: 'receipt_received', error: String(err.message || err) })
+  }
+}
+
+async function sendOrderConfirmedEmail(order) {
+  if (!order.customer.email) return
+  try {
+    await sendBrevoEmail({
+      to: order.customer.email,
+      subject: `Payment confirmed — order ${order.reference}`,
+      html: `
+        <h2>Payment confirmed</h2>
+        <p>Your payment for order <strong>${escapeHtml(order.reference)}</strong> has been verified. We're processing your order.</p>
+        ${itemsTable(order.items)}
+        <p><strong>Total: ${formatNaira(order.total)}</strong></p>
+      `,
+    })
+  } catch (err) {
+    console.error(`[mailer] failed to send confirmation email for ${order.reference}:`, err)
+    await logActivity('order.notification_failed', 'order', order.id, { type: 'order_confirmed', error: String(err.message || err) })
+  }
+}
+
+// The re-upload link carries the order token (not just the reference) so it
+// works from any device — the token is what actually authorizes the upload,
+// not something read out of localStorage on one browser.
+async function sendOrderRejectedEmail(order, reason) {
+  if (!order.customer.email) return
+  const base = (process.env.FRONTEND_URL || 'https://genvio-website.vercel.app').replace(/\/$/, '')
+  const reuploadLink = `${base}/shop/bag?reupload=${order.id}&token=${order.orderToken}`
+  try {
+    await sendBrevoEmail({
+      to: order.customer.email,
+      subject: `Order ${order.reference}: we couldn't verify your payment`,
+      html: `
+        <h2>We couldn't verify your payment</h2>
+        <p>Order <strong>${escapeHtml(order.reference)}</strong>: ${escapeHtml(reason)}</p>
+        <p><a href="${reuploadLink}">Upload a new receipt for this order →</a></p>
+      `,
+    })
+  } catch (err) {
+    console.error(`[mailer] failed to send rejection email for ${order.reference}:`, err)
+    await logActivity('order.notification_failed', 'order', order.id, { type: 'order_rejected', error: String(err.message || err) })
+  }
+}
+
 async function sendOrderNotification(order) {
   const recipient = await getConfig('notification_email')
   console.log(`[mailer] resolved order-alert recipient: "${recipient}" (order ${order.reference})`)
@@ -114,4 +262,10 @@ async function sendOrderNotification(order) {
   }
 }
 
-module.exports = { sendOrderNotification }
+module.exports = {
+  sendOrderNotification,
+  sendReceiptUploadedEmail,
+  sendReceiptReceivedEmail,
+  sendOrderConfirmedEmail,
+  sendOrderRejectedEmail,
+}
