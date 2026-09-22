@@ -26,14 +26,6 @@ export function createOrder({ phone, name, address, items, total, deliveryZone }
   return apiFetch('/api/orders', jsonOptions('POST', { phone, name, address, items, total, deliveryZone }))
 }
 
-// Correct the delivery details (name + address) the courier will see.
-export function updateOrderDelivery(orderId, reference, { name, address }) {
-  return apiFetch(
-    `/api/orders/${encodeURIComponent(orderId)}/delivery`,
-    jsonOptions('PATCH', { reference, name, address })
-  )
-}
-
 export function getPaymentConfig() {
   return apiFetch('/api/config/payment')
 }
