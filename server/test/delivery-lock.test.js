@@ -179,11 +179,42 @@ const goodBody = {
 }
 
 // ---------------------------------------------------------------------------
-// Customer edit is locked once the order exists — every status.
+// Customer edit is allowed while pending_payment, locked from confirmed on.
 // ---------------------------------------------------------------------------
 
-test('customer delivery edit is rejected with 409 + exact message on EVERY status', async () => {
-  for (const status of STATUSES) {
+test('customer delivery edit is allowed while pending_payment and writes only Order.address', async () => {
+  seedOrder({
+    id: 'ord-pending',
+    reference: 'REF-PENDING',
+    status: 'pending_payment',
+    address: { street: '1 Old Street', city: 'Ikeja', state: 'Lagos' },
+    customerName: 'Chidinma',
+  })
+  const { status, json } = await patch('/orders/ord-pending/delivery', {
+    reference: 'REF-PENDING',
+    name: 'Chidinma Updated',
+    address: { street: '9 New Road', city: 'Surulere', state: 'Lagos' },
+  })
+
+  assert.equal(status, 200)
+  assert.equal(json.address.street, '9 New Road')
+  assert.equal(json.address.recipientName, 'Chidinma Updated')
+
+  // Exactly one write: the order, with ONLY the address field in `data`.
+  assert.equal(calls.orderUpdate.length, 1)
+  const write = calls.orderUpdate[0]
+  assert.deepEqual(Object.keys(write.data), ['address'])
+  assert.equal(write.data.address.recipientName, 'Chidinma Updated')
+
+  // The shared Customer record is never touched, and the customer-facing
+  // route never writes an audit entry.
+  assert.equal(calls.customerUpsert + calls.customerUpdate, 0)
+  assert.equal(calls.activityLog.length, 0)
+})
+
+test('customer delivery edit is rejected with 409 + exact message from confirmed onward', async () => {
+  for (const status of ['confirmed', 'processing', 'shipped', 'delivered']) {
+    calls.orderUpdate.length = 0
     seedOrder({ id: `ord-${status}`, reference: `REF-${status}`, status })
     const { status: httpStatus, json } = await patch(`/orders/ord-${status}/delivery`, {
       reference: `REF-${status}`,
@@ -191,9 +222,9 @@ test('customer delivery edit is rejected with 409 + exact message on EVERY statu
     })
     assert.equal(httpStatus, 409, `expected 409 for ${status}`)
     assert.equal(json.error, LOCKED_MESSAGE, `wrong message for ${status}`)
+    // The locked path must never write.
+    assert.equal(calls.orderUpdate.length, 0)
   }
-  // The locked path must never write.
-  assert.equal(calls.orderUpdate.length, 0)
   assert.equal(calls.customerUpsert + calls.customerUpdate, 0)
 })
 

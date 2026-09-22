@@ -279,6 +279,7 @@ export default function CheckoutOverlay({ onClose }) {
             <section {...panelProps(3)}>
               <DoneStep
                 order={order}
+                setOrder={setOrder}
                 saveState={saveState}
                 active={step === 3}
                 onDone={close}

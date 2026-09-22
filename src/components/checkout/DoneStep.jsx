@@ -1,14 +1,16 @@
+import { useState } from 'react'
 import Price from '../Price'
+import Field from './Field'
 import { AddressLines } from './SummaryStep'
 import SaveDetailsOffer from './SaveDetailsOffer'
+import { updateOrderDelivery } from '../../api/orders'
 import { formatNgPhone } from '../../utils/phone'
+import { NIGERIAN_STATES } from '../../data/nigerianStates'
 
 const primary =
   'w-full h-12 rounded-md bg-cta text-on-cta text-sm font-semibold tracking-[0.02em] shadow-[0_6px_16px_-6px_rgb(0_0_0/0.35)] hover:bg-cta-hover active:translate-y-px active:shadow-none disabled:bg-transparent disabled:text-muted disabled:border disabled:border-line disabled:shadow-none disabled:cursor-not-allowed transition-[background-color,border-color,color,box-shadow,transform] duration-300'
-
-// Delivery details are locked once the order exists (the server rejects every
-// status), so there is deliberately no Edit button here — only this note.
-const deliveryNote = 'Need to change delivery details? Contact us.'
+const quiet =
+  'h-11 px-4 rounded-md border border-line text-sm font-medium text-ink-soft hover:text-ink hover:border-accent transition-colors duration-300 disabled:opacity-50'
 
 function Row({ label, children }) {
   return (
@@ -19,13 +21,66 @@ function Row({ label, children }) {
   )
 }
 
-export default function DoneStep({ order, saveState, active, onDone }) {
+const emptyDraft = { name: '', address: { street: '', city: '', state: '' } }
+
+export default function DoneStep({ order, setOrder, saveState, active, onDone }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(emptyDraft)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
   if (!order) return null
 
-  // The recipient name may live on the order (address.recipientName, set by
-  // the courier-correcting admin flow) or fall back to the shared customer
-  // record for orders placed before that field existed.
+  // Delivery details lock once the shop confirms the payment (confirmed and
+  // later): the Done step is shown while the order is still pending_payment,
+  // so customers can fix their details in that window. After that the server
+  // rejects the edit and only this plain-text note is shown.
+  const locked = order.status !== 'pending_payment'
   const recipientName = order.address?.recipientName || order.customer.name
+
+  const startEdit = () => {
+    setDraft({
+      name: recipientName,
+      address: {
+        street: (order.address && typeof order.address === 'object' ? order.address.street : '') ?? '',
+        city: (order.address && typeof order.address === 'object' ? order.address.city : '') ?? '',
+        state: (order.address && typeof order.address === 'object' ? order.address.state : '') ?? '',
+      },
+    })
+    setError('')
+    setEditing(true)
+  }
+
+  const setAddress = (patch) => setDraft((d) => ({ ...d, address: { ...d.address, ...patch } }))
+
+  const save = async () => {
+    if (draft.name.trim().length < 2) {
+      setError('Enter the recipient’s full name')
+      return
+    }
+    if (draft.address.street.trim().length < 3 || draft.address.city.trim().length < 2 || !draft.address.state) {
+      setError('Enter a street address, city and state')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const updated = await updateOrderDelivery(order.id, order.reference, {
+        name: draft.name.trim(),
+        address: {
+          street: draft.address.street.trim(),
+          city: draft.address.city.trim(),
+          state: draft.address.state,
+        },
+      })
+      setOrder(updated)
+      setEditing(false)
+    } catch (err) {
+      setError(err.message || 'Couldn’t save the delivery details. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="px-5 sm:px-8 pb-6 sm:pb-8">
@@ -57,19 +112,96 @@ export default function DoneStep({ order, saveState, active, onDone }) {
       </div>
 
       <section className="mt-6 rounded-md border border-line bg-ground px-4 py-3.5" aria-labelledby="delivery-heading">
-        <h3 id="delivery-heading" className="text-sm font-medium text-ink">
-          Delivery details for logistics
-        </h3>
-        <p className="mt-0.5 text-xs text-muted">This is what the courier will see.</p>
-        <div className="mt-3 text-sm text-ink leading-relaxed">
-          <p className="font-medium">{recipientName}</p>
-          <AddressLines address={order.address} />
-          <p className="text-muted tabular-nums mt-0.5">{formatNgPhone(order.customer.phone)}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h3 id="delivery-heading" className="text-sm font-medium text-ink">
+              Delivery details for logistics
+            </h3>
+            <p className="mt-0.5 text-xs text-muted">This is what the courier will see.</p>
+          </div>
+          {!editing && !locked && (
+            <button
+              type="button"
+              onClick={startEdit}
+              className="shrink-0 text-xs text-ink-soft hover:text-ink underline underline-offset-4 transition-colors"
+            >
+              Edit
+            </button>
+          )}
         </div>
-        <p className="mt-3 text-xs text-muted">{deliveryNote}</p>
+
+        {editing ? (
+          <div className="mt-4 space-y-4">
+            <Field
+              label="Full name"
+              name="edit-name"
+              value={draft.name}
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+            />
+            <Field
+              label="Delivery address"
+              name="edit-street"
+              as="textarea"
+              rows={2}
+              value={draft.address.street}
+              onChange={(e) => setAddress({ street: e.target.value })}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <Field
+                label="City"
+                name="edit-city"
+                value={draft.address.city}
+                onChange={(e) => setAddress({ city: e.target.value })}
+              />
+              <Field
+                label="State"
+                name="edit-state"
+                as="select"
+                data-empty={draft.address.state ? undefined : 'true'}
+                value={draft.address.state}
+                onChange={(e) => setAddress({ state: e.target.value })}
+              >
+                <option value="">Choose…</option>
+                {NIGERIAN_STATES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Field>
+            </div>
+            {error && (
+              <p className="text-xs text-danger" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="flex gap-2.5 pt-1">
+              <button type="button" onClick={() => setEditing(false)} disabled={saving} className={quiet}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="h-11 px-5 rounded-md bg-cta text-on-cta text-sm font-semibold hover:bg-cta-hover active:translate-y-px transition-[background-color,transform] duration-300 disabled:opacity-60"
+              >
+                {saving ? 'Saving…' : 'Save details'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 text-sm text-ink leading-relaxed">
+            <p className="font-medium">{recipientName}</p>
+            <AddressLines address={order.address} />
+            <p className="text-muted tabular-nums mt-0.5">{formatNgPhone(order.customer.phone)}</p>
+          </div>
+        )}
+
+        {!editing && locked && (
+          <p className="mt-3 text-xs text-muted">Need to change delivery details? Contact us.</p>
+        )}
       </section>
 
-      <SaveDetailsOffer order={order} saveState={saveState} />
+      {!editing && <SaveDetailsOffer order={order} saveState={saveState} />}
 
       <div className="mt-5 divide-y divide-line border-y border-line">
         <Row label="Total">

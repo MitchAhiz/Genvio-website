@@ -4,13 +4,14 @@ const { upsertCustomer } = require('./customers')
 const ORDER_STATUSES = ['pending_payment', 'confirmed', 'processing', 'shipped', 'delivered']
 
 // The single place the "can a customer still edit this order's delivery
-// details?" rule lives. Once an order row exists, the answer is no for every
-// status: the Done step is shown while the status is still pending_payment,
-// so a status-based lock at "confirmed" would not remove the Edit button
-// there. Admin routes never call this helper; they are always allowed to
+// details?" rule lives. The Order row is created when the customer taps
+// "I've paid", while the order is still pending_payment — payment has been
+// transferred but not yet verified by the shop. That window stays editable,
+// so only orders whose payment has succeeded (confirmed and later) are
+// locked. Admin routes never call this helper; they are always allowed to
 // correct details, even on paid orders.
 function isOrderLockedForCustomerEdit(order) {
-  return Boolean(order)
+  return Boolean(order) && order.status !== 'pending_payment'
 }
 
 const orderWithCustomer = {
