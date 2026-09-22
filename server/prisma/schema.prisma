@@ -32,6 +32,9 @@ model Customer {
   phone   String  @unique
   name    String
   email   String?
+  // Whether `phone` is reachable on WhatsApp. Defaults true (the checkbox is
+  // ticked by default); the shop does not require WhatsApp, only prefers it.
+  isWhatsapp Boolean @default(true) @map("is_whatsapp")
   address Json
 
   // Opt-in saved details. pinHash is a bcrypt hash of a 4-digit PIN and is
@@ -51,20 +54,62 @@ model Customer {
 model Order {
   id            String   @id @default(cuid())
   reference     String   @unique
+  // Unguessable proof of ownership for the receipt-upload/lookup routes —
+  // deliberately separate from `reference`, which is human-readable and
+  // shown/typed as the transfer narration, so it can't double as a secret.
+  // Database-level default (not just Prisma's client-side uuid()) so any
+  // client — including the pre-Step-1 code still deployed on Render at the
+  // time this was added — can INSERT a row without knowing this column
+  // exists. Keep schema and DB in lockstep: see migration
+  // 20260922130000_add_order_token_db_default.
+  orderToken    String   @unique @default(dbgenerated("gen_random_uuid()::text")) @map("order_token")
   customerId    String   @map("customer_id")
   items         Json
   address       Json
   total         Int
+  // pending_payment -> pending_verification -> confirmed -> processing ->
+  // shipped -> delivered, with rejected branching off pending_verification
+  // (a fresh upload on a rejected order returns it to pending_verification),
+  // and expired for a pending_payment order that never got a receipt.
   status        String   @default("pending_payment")
   paymentMethod String   @default("bank_transfer") @map("payment_method")
   notes         String?  @db.Text
+  // Stock stays reserved (see VariantSize.reservedQuantity) until this
+  // passes without the order reaching confirmed; set on each receipt upload.
+  reservedUntil DateTime? @map("reserved_until")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  customer Customer @relation(fields: [customerId], references: [id])
+  customer Customer         @relation(fields: [customerId], references: [id])
+  receipts PaymentReceipt[]
 
   @@index([status, createdAt])
   @@map("orders")
+}
+
+// A separate table (not a column on Order) so a rejected order can receive a
+// new upload without overwriting the rejected one — admin sees every attempt.
+model PaymentReceipt {
+  id               String    @id @default(cuid())
+  orderId          String    @map("order_id")
+  storageKey       String    @map("storage_key")
+  fileType         String    @map("file_type")
+  fileSize         Int       @map("file_size")
+  originalFilename String    @map("original_filename")
+  storedFilename   String    @map("stored_filename")
+  fileHash         String    @map("file_hash")
+  // Same hash exists on a different order — still accepted, just flagged.
+  isDuplicate      Boolean   @default(false) @map("is_duplicate")
+  uploadedAt       DateTime  @default(now()) @map("uploaded_at")
+  reviewedBy       String?   @map("reviewed_by")
+  reviewedAt       DateTime? @map("reviewed_at")
+  rejectionReason  String?   @db.Text @map("rejection_reason")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, uploadedAt])
+  @@index([fileHash])
+  @@map("payment_receipts")
 }
 
 model WholesaleImage {
@@ -106,6 +151,10 @@ model VariantSize {
   variantId String @map("variant_id")
   size      String
   quantity  Int    @default(0)
+  // Held by orders in pending_verification (Order.reservedUntil). Available
+  // stock is always quantity - reservedQuantity; quantity itself is only
+  // decremented when an order is confirmed.
+  reservedQuantity Int @default(0) @map("reserved_quantity")
 
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 

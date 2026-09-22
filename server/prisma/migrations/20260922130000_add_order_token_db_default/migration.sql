@@ -1,0 +1,11 @@
+-- Fix: the live Render backend still runs the pre-Step-1 code, whose Prisma
+-- Client has no knowledge of orders.order_token and omits it from INSERT.
+-- That column is NOT NULL with no database-level default (only Prisma's
+-- client-side @default(uuid())), so every order placed by the old deployed
+-- code fails with a NOT NULL violation ("Internal server error" on "I've
+-- paid"). Giving it a real DB-level default unblocks the old code
+-- immediately, with no redeploy needed, and is harmless for the new code
+-- (which keeps generating its own token client-side regardless).
+--
+-- Purely additive: touches no existing rows, drops/renames nothing.
+ALTER TABLE "orders" ALTER COLUMN "order_token" SET DEFAULT gen_random_uuid()::text;
