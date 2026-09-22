@@ -10,6 +10,7 @@ import CataloguePage from './pages/CataloguePage'
 import ProductPage from './pages/ProductPage'
 import BagPage from './pages/BagPage'
 import WholesalePage from './pages/WholesalePage'
+import StaticPage from './pages/StaticPage'
 import MaintenancePage from './pages/MaintenancePage'
 import AdminPage from './pages/AdminPage'
 import AdminProducts from './pages/admin/AdminProducts'
@@ -65,6 +66,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/wholesale" element={<WholesaleGuard />} />
+        <Route path="/about" element={<StaticPage slug="about" fallbackTitle="About" />} />
+        <Route path="/refund-policy" element={<StaticPage slug="refund-policy" fallbackTitle="Refund and Returns Policy" />} />
         <Route path="/admin" element={<AdminPage />}>
           <Route index element={<Navigate to="/admin/products" replace />} />
           <Route path="products" element={<AdminProducts />} />

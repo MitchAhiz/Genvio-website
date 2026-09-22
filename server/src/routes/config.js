@@ -1,5 +1,5 @@
 const { Router } = require('express')
-const { getConfig, getAllConfig, setConfigBulk, getConfigHistory } = require('../services/configService')
+const { getConfig, getAllConfig, setConfigBulk, getConfigHistory, PAGE_SLUG_TO_KEY } = require('../services/configService')
 const { requireAdminAuth } = require('../middleware/auth')
 const { cleanEmail } = require('../utils/sanitize')
 const { logActivity } = require('../utils/logActivity')
@@ -143,6 +143,40 @@ function validateFooterConfig(v) {
   }
 }
 
+const MAX_PAGE_TITLE_LEN = 100
+const MAX_PAGE_BLOCKS = 40
+const MAX_HEADING_TEXT_LEN = 100
+const MAX_PARAGRAPH_TEXT_LEN = 2000
+
+// Structured content for a static page (About, Refund & Returns): a title
+// plus an ordered list of heading/paragraph blocks. No raw HTML is ever
+// accepted — the frontend only ever renders block.text as a text node, so
+// there's no markup to sanitize and nothing to inject.
+function validatePageConfig(v) {
+  if (!v || typeof v !== 'object') return { ok: false, error: 'page content must be an object' }
+  if (!isValidLabel(v.title, MAX_PAGE_TITLE_LEN)) {
+    return { ok: false, error: `title must be 1-${MAX_PAGE_TITLE_LEN} characters` }
+  }
+  if (!Array.isArray(v.blocks)) return { ok: false, error: 'blocks must be a list' }
+  if (v.blocks.length === 0) return { ok: false, error: 'at least one block is required' }
+  if (v.blocks.length > MAX_PAGE_BLOCKS) return { ok: false, error: `at most ${MAX_PAGE_BLOCKS} blocks allowed` }
+
+  const blocks = []
+  for (const block of v.blocks) {
+    if (!block || typeof block !== 'object') return { ok: false, error: 'each block must be an object' }
+    const { id, type, text } = block
+    if (typeof id !== 'string' || !id.trim()) return { ok: false, error: 'block id is required' }
+    if (type !== 'heading' && type !== 'paragraph') return { ok: false, error: 'block type must be "heading" or "paragraph"' }
+    const maxLen = type === 'heading' ? MAX_HEADING_TEXT_LEN : MAX_PARAGRAPH_TEXT_LEN
+    if (typeof text !== 'string' || !text.trim() || text.trim().length > maxLen) {
+      return { ok: false, error: `${type} text must be 1-${maxLen} characters` }
+    }
+    blocks.push({ id: id.trim(), type, text: text.trim() })
+  }
+
+  return { ok: true, value: { title: v.title.trim(), blocks } }
+}
+
 const VALIDATORS = {
   maintenance_mode: (v) => (typeof v === 'boolean' ? { ok: true, value: v } : { ok: false }),
   checkout_enabled: (v) => (typeof v === 'boolean' ? { ok: true, value: v } : { ok: false }),
@@ -160,6 +194,9 @@ const VALIDATORS = {
     if (typeof v === 'number' && Number.isFinite(v) && v > 0) return { ok: true, value: v }
     return { ok: false }
   },
+  delivery_mainland_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
+  delivery_island_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
+  delivery_interstate_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
   notification_email: (v) => {
     const email = cleanEmail(v)
     return email ? { ok: true, value: email } : { ok: false }
@@ -167,10 +204,9 @@ const VALIDATORS = {
   bank_account_name: (v) => (typeof v === 'string' && v.trim() ? { ok: true, value: v.trim().slice(0, 200) } : { ok: false }),
   bank_account_number: (v) => (typeof v === 'string' && v.trim() ? { ok: true, value: v.trim().slice(0, 40) } : { ok: false }),
   bank_name: (v) => (typeof v === 'string' && v.trim() ? { ok: true, value: v.trim().slice(0, 200) } : { ok: false }),
-  delivery_mainland_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
-  delivery_island_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
-  delivery_interstate_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
   footer_config: validateFooterConfig,
+  page_about: validatePageConfig,
+  page_refund_policy: validatePageConfig,
 }
 
 // Public. Bank details live in site_config so the client can change them from
@@ -205,6 +241,20 @@ router.get('/config/site', async (_req, res, next) => {
       delivery_interstate_fee: config.delivery_interstate_fee,
       footer_config: config.footer_config,
     })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// Public. Static page content (About, Refund & Returns) for the storefront
+// pages at /about and /refund-policy. Only the two known slugs are readable
+// here — this must never become a generic "read any config key by name"
+// route, since other keys (bank_account_number etc.) are sensitive.
+router.get('/config/page/:slug', async (req, res, next) => {
+  try {
+    const key = PAGE_SLUG_TO_KEY[req.params.slug]
+    if (!key) return res.status(404).json({ error: 'Unknown page' })
+    res.json(await getConfig(key))
   } catch (err) {
     next(err)
   }
@@ -272,3 +322,4 @@ module.exports = router
 // Exposed for server/test/footer-config.test.js — router is a function
 // object, so it can carry this without changing how Express uses it.
 module.exports.validateFooterConfig = validateFooterConfig
+module.exports.validatePageConfig = validatePageConfig

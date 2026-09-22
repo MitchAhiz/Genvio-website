@@ -6,6 +6,7 @@ import PaymentSettingsCard from '../../components/admin/PaymentSettingsCard'
 import SiteControlsCard from '../../components/admin/SiteControlsCard'
 import DeliveryFeesCard from '../../components/admin/DeliveryFeesCard'
 import FooterSettingsCard from '../../components/admin/FooterSettingsCard'
+import PageContentCard from '../../components/admin/PageContentCard'
 import ActivityLogPanel from '../../components/admin/ActivityLogPanel'
 import SessionSecurityCard from '../../components/admin/SessionSecurityCard'
 
@@ -86,6 +87,7 @@ export default function AdminSettings() {
       <SiteControlsCard config={config} onSaved={setConfig} />
       <DeliveryFeesCard config={config} onSaved={setConfig} />
       <FooterSettingsCard config={config} onSaved={setConfig} />
+      <PageContentCard config={config} onSaved={setConfig} />
       <NotificationsCard config={config} onSaved={setConfig} />
       <ActivityLogPanel />
       <SessionSecurityCard />

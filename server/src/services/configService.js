@@ -32,6 +32,28 @@ const FOOTER_CONFIG_DEFAULT = {
   },
 }
 
+// Seed content for the two static pages the Quick Links defaults point to.
+// Blocks are structured ({type, text}) rather than free-form HTML — the
+// renderer only ever prints text nodes, so there's no injection surface and
+// no need to sanitize.
+const PAGE_ABOUT_DEFAULT = {
+  title: 'About Genvio Exotic Apparel',
+  blocks: [
+    { id: 'b-about-1', type: 'paragraph', text: 'Genvio Exotic Apparel is a premium fashion catalogue for Men, Women and Kids — pieces chosen for how they wear, not just how they photograph.' },
+    { id: 'b-about-2', type: 'paragraph', text: "Browse the catalogue, add pieces to your bag, and send your order — we'll confirm by bank transfer and get it to you." },
+  ],
+}
+
+const PAGE_REFUND_POLICY_DEFAULT = {
+  title: 'Refund and Returns Policy',
+  blocks: [
+    { id: 'b-refund-1', type: 'heading', text: 'Returns' },
+    { id: 'b-refund-2', type: 'paragraph', text: "Contact us within 7 days of delivery if an item isn't right. Items must be unworn, unwashed, and in their original condition with tags attached." },
+    { id: 'b-refund-3', type: 'heading', text: 'Refunds' },
+    { id: 'b-refund-4', type: 'paragraph', text: "Once we receive and inspect your return, we'll process a refund to your original payment method within 5-7 business days." },
+  ],
+}
+
 const DEFAULTS = {
   maintenance_mode: false,
   section_visibility: { men: true, women: true, kids: true, wholesale: true },
@@ -45,7 +67,12 @@ const DEFAULTS = {
   bank_account_number: () => (process.env.BANK_ACCOUNT_NUMBER || '').trim(),
   bank_name: () => (process.env.BANK_NAME || '').trim(),
   footer_config: FOOTER_CONFIG_DEFAULT,
+  page_about: PAGE_ABOUT_DEFAULT,
+  page_refund_policy: PAGE_REFUND_POLICY_DEFAULT,
 }
+
+// slug (as used in the URL, /about and /refund-policy) -> site_config key.
+const PAGE_SLUG_TO_KEY = { about: 'page_about', 'refund-policy': 'page_refund_policy' }
 
 function defaultFor(key) {
   const def = DEFAULTS[key]
@@ -81,6 +108,15 @@ function mergeFooterConfig(saved) {
   return merged
 }
 
+function mergePageConfig(saved, key) {
+  const def = DEFAULTS[key]
+  if (!saved || typeof saved !== 'object') return def
+  return {
+    title: typeof saved.title === 'string' && saved.title.trim() ? saved.title : def.title,
+    blocks: Array.isArray(saved.blocks) ? saved.blocks : def.blocks,
+  }
+}
+
 function decode(row) {
   let value
   try {
@@ -89,6 +125,7 @@ function decode(row) {
     value = row.value
   }
   if (row.key === 'footer_config') return mergeFooterConfig(value)
+  if (row.key === 'page_about' || row.key === 'page_refund_policy') return mergePageConfig(value, row.key)
   return value
 }
 
@@ -147,4 +184,12 @@ async function getConfigHistory({ keys, limit = 20 } = {}) {
   return rows
 }
 
-module.exports = { getConfig, getAllConfig, setConfig, setConfigBulk, getConfigHistory, DEFAULT_KEYS: Object.keys(DEFAULTS) }
+module.exports = {
+  getConfig,
+  getAllConfig,
+  setConfig,
+  setConfigBulk,
+  getConfigHistory,
+  DEFAULT_KEYS: Object.keys(DEFAULTS),
+  PAGE_SLUG_TO_KEY,
+}
