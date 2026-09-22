@@ -8,7 +8,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "db:apply": "node scripts/apply-migrations.js"
+    "db:apply": "node scripts/apply-migrations.js",
+    "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",

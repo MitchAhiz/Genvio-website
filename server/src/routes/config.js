@@ -6,6 +6,143 @@ const { logActivity } = require('../utils/logActivity')
 
 const router = Router()
 
+const SECTION_KEYS = ['men', 'women', 'kids']
+const MAX_QUICK_LINKS = 12
+const MAX_SUB_LINKS = 10
+const MAX_BRANDS = 20
+const MAX_LABEL_LEN = 50
+const MAX_HEADING_LEN = 40
+const MAX_URL_LEN = 500
+
+// Matches any ASCII control character (incl. tab/newline) or plain space —
+// URLs and labels should never carry these, and stripping them is how
+// javascript:alert(1)\n-style smuggling via whitespace gets caught even
+// though the scheme check below already blocks the javascript: case itself.
+const CONTROL_OR_WHITESPACE = /[\x00-\x20\x7F]/
+
+// Internal paths ("/shop/men") and absolute http(s) URLs only. Rejects
+// javascript:/data:/vbscript: (fail the protocol check), protocol-relative
+// "//evil.com" (a leading "/" is required but a second "/" is not allowed),
+// and anything containing whitespace or control characters.
+function isValidUrl(v) {
+  if (typeof v !== 'string') return false
+  const s = v.trim()
+  if (!s || s.length > MAX_URL_LEN) return false
+  if (CONTROL_OR_WHITESPACE.test(s)) return false
+  if (s.startsWith('/')) return !s.startsWith('//')
+  let parsed
+  try {
+    parsed = new URL(s)
+  } catch {
+    return false
+  }
+  return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !!parsed.hostname
+}
+
+function isValidLabel(v, maxLen = MAX_LABEL_LEN) {
+  return typeof v === 'string' && !!v.trim() && v.trim().length <= maxLen
+}
+
+// A single link entry shared by quickLinks and sectionLinks[*].subLinks.
+// Returns { ok, value, error }.
+function validateLink(v, context) {
+  if (!v || typeof v !== 'object') return { ok: false, error: `${context}: each link must be an object` }
+  const { id, label, url, external, newTab, enabled, sortOrder } = v
+  if (typeof id !== 'string' || !id.trim()) return { ok: false, error: `${context}: link id is required` }
+  if (!isValidLabel(label)) return { ok: false, error: `${context}: label must be 1-${MAX_LABEL_LEN} characters` }
+  if (!isValidUrl(url)) return { ok: false, error: `${context}: url must be an internal path ("/...") or an http(s) URL` }
+  if (typeof enabled !== 'boolean') return { ok: false, error: `${context}: enabled must be true/false` }
+  if (typeof sortOrder !== 'number' || !Number.isFinite(sortOrder)) return { ok: false, error: `${context}: sortOrder must be a number` }
+  return {
+    ok: true,
+    value: {
+      id: id.trim(),
+      label: label.trim(),
+      url: url.trim(),
+      external: !!external,
+      newTab: !!newTab,
+      enabled,
+      sortOrder,
+    },
+  }
+}
+
+function validateLinkList(list, max, context) {
+  if (!Array.isArray(list)) return { ok: false, error: `${context}: must be a list` }
+  if (list.length > max) return { ok: false, error: `${context}: at most ${max} links allowed` }
+  const out = []
+  for (const item of list) {
+    const result = validateLink(item, context)
+    if (!result.ok) return result
+    out.push(result.value)
+  }
+  return { ok: true, value: out }
+}
+
+function validateFooterConfig(v) {
+  if (!v || typeof v !== 'object') return { ok: false, error: 'footer_config must be an object' }
+
+  const headings = v.headings
+  if (!headings || typeof headings !== 'object') return { ok: false, error: 'headings is required' }
+  const { quickLinks: qh, categories: ch, brands: bh } = headings
+  for (const [name, val] of [['quickLinks', qh], ['categories', ch], ['brands', bh]]) {
+    if (!isValidLabel(val, MAX_HEADING_LEN)) {
+      return { ok: false, error: `heading "${name}" must be 1-${MAX_HEADING_LEN} characters` }
+    }
+  }
+
+  const quickLinksResult = validateLinkList(v.quickLinks, MAX_QUICK_LINKS, 'quickLinks')
+  if (!quickLinksResult.ok) return quickLinksResult
+
+  const sectionLinks = {}
+  if (!v.sectionLinks || typeof v.sectionLinks !== 'object') return { ok: false, error: 'sectionLinks is required' }
+  if (Object.keys(v.sectionLinks).length !== SECTION_KEYS.length) {
+    return { ok: false, error: `sectionLinks must have exactly these keys: ${SECTION_KEYS.join(', ')}` }
+  }
+  for (const key of SECTION_KEYS) {
+    const entry = v.sectionLinks[key]
+    if (!entry || typeof entry !== 'object') return { ok: false, error: `sectionLinks.${key} is required` }
+    if (typeof entry.enabled !== 'boolean') return { ok: false, error: `sectionLinks.${key}.enabled must be true/false` }
+    if (!isValidLabel(entry.label)) return { ok: false, error: `sectionLinks.${key}.label must be 1-${MAX_LABEL_LEN} characters` }
+    if (!isValidUrl(entry.url)) return { ok: false, error: `sectionLinks.${key}.url is invalid` }
+    const subLinksResult = validateLinkList(entry.subLinks, MAX_SUB_LINKS, `sectionLinks.${key}.subLinks`)
+    if (!subLinksResult.ok) return subLinksResult
+    sectionLinks[key] = { enabled: entry.enabled, label: entry.label.trim(), url: entry.url.trim(), subLinks: subLinksResult.value }
+  }
+
+  const brandsCfg = v.brands
+  if (!brandsCfg || typeof brandsCfg !== 'object') return { ok: false, error: 'brands is required' }
+  if (typeof brandsCfg.maxCount !== 'number' || !Number.isInteger(brandsCfg.maxCount) || brandsCfg.maxCount < 1 || brandsCfg.maxCount > MAX_BRANDS) {
+    return { ok: false, error: `brands.maxCount must be an integer from 1 to ${MAX_BRANDS}` }
+  }
+  if (!Array.isArray(brandsCfg.items)) return { ok: false, error: 'brands.items must be a list' }
+  if (brandsCfg.items.length > MAX_BRANDS) return { ok: false, error: `brands.items: at most ${MAX_BRANDS} brands allowed` }
+  const brandItems = []
+  const seenBrandKeys = new Set()
+  for (const item of brandsCfg.items) {
+    if (!item || typeof item !== 'object') return { ok: false, error: 'brands.items: each brand must be an object' }
+    const { id, name, sortOrder } = item
+    if (typeof id !== 'string' || !id.trim()) return { ok: false, error: 'brands.items: brand id is required' }
+    if (!isValidLabel(name)) return { ok: false, error: `brands.items: brand name must be 1-${MAX_LABEL_LEN} characters` }
+    if (typeof sortOrder !== 'number' || !Number.isFinite(sortOrder)) return { ok: false, error: 'brands.items: sortOrder must be a number' }
+    const trimmedName = name.trim()
+    const dedupeKey = trimmedName.toLowerCase()
+    if (seenBrandKeys.has(dedupeKey)) return { ok: false, error: `brands.items: duplicate brand "${trimmedName}" (case-insensitive)` }
+    seenBrandKeys.add(dedupeKey)
+    brandItems.push({ id: id.trim(), name: trimmedName, sortOrder })
+  }
+
+  return {
+    ok: true,
+    value: {
+      headings: { quickLinks: qh.trim(), categories: ch.trim(), brands: bh.trim() },
+      quickLinks: quickLinksResult.value,
+      sectionLinks,
+      brands: { maxCount: brandsCfg.maxCount, items: brandItems },
+    },
+  }
+}
+
 const VALIDATORS = {
   maintenance_mode: (v) => (typeof v === 'boolean' ? { ok: true, value: v } : { ok: false }),
   checkout_enabled: (v) => (typeof v === 'boolean' ? { ok: true, value: v } : { ok: false }),
@@ -33,6 +170,7 @@ const VALIDATORS = {
   delivery_mainland_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
   delivery_island_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
   delivery_interstate_fee: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? { ok: true, value: v } : { ok: false }),
+  footer_config: validateFooterConfig,
 }
 
 // Public. Bank details live in site_config so the client can change them from
@@ -65,6 +203,7 @@ router.get('/config/site', async (_req, res, next) => {
       delivery_mainland_fee: config.delivery_mainland_fee,
       delivery_island_fee: config.delivery_island_fee,
       delivery_interstate_fee: config.delivery_interstate_fee,
+      footer_config: config.footer_config,
     })
   } catch (err) {
     next(err)
@@ -115,7 +254,7 @@ router.patch('/config', requireAdminAuth, async (req, res, next) => {
     const toWrite = {}
     for (const key of keys) {
       const result = VALIDATORS[key](body[key])
-      if (!result.ok) return res.status(400).json({ error: `Invalid value for ${key}` })
+      if (!result.ok) return res.status(400).json({ error: result.error || `Invalid value for ${key}` })
       toWrite[key] = result.value
     }
 
@@ -130,3 +269,6 @@ router.patch('/config', requireAdminAuth, async (req, res, next) => {
 })
 
 module.exports = router
+// Exposed for server/test/footer-config.test.js — router is a function
+// object, so it can carry this without changing how Express uses it.
+module.exports.validateFooterConfig = validateFooterConfig

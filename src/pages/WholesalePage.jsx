@@ -5,6 +5,7 @@ import { useTheme } from '../hooks/useTheme'
 import CategoryPills from '../components/CategoryPills'
 import ImageViewer from '../components/ImageViewer'
 import { ArrowRightIcon } from '../components/icons'
+import Footer from '../components/Footer'
 
 export default function WholesalePage() {
   useTheme('wholesale')
@@ -130,6 +131,8 @@ export default function WholesalePage() {
       {viewerIndex !== null && (
         <ImageViewer images={viewerImages} startIndex={viewerIndex} onClose={() => setViewerIndex(null)} />
       )}
+
+      <Footer />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { CardSkeleton } from '../../components/admin/Skeleton'
 import PaymentSettingsCard from '../../components/admin/PaymentSettingsCard'
 import SiteControlsCard from '../../components/admin/SiteControlsCard'
 import DeliveryFeesCard from '../../components/admin/DeliveryFeesCard'
+import FooterSettingsCard from '../../components/admin/FooterSettingsCard'
 import ActivityLogPanel from '../../components/admin/ActivityLogPanel'
 import SessionSecurityCard from '../../components/admin/SessionSecurityCard'
 
@@ -84,6 +85,7 @@ export default function AdminSettings() {
       <PaymentSettingsCard config={config} onSaved={setConfig} />
       <SiteControlsCard config={config} onSaved={setConfig} />
       <DeliveryFeesCard config={config} onSaved={setConfig} />
+      <FooterSettingsCard config={config} onSaved={setConfig} />
       <NotificationsCard config={config} onSaved={setConfig} />
       <ActivityLogPanel />
       <SessionSecurityCard />

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTheme } from '../hooks/useTheme'
 import { useSiteConfig } from '../hooks/useSiteConfig'
 import { ArrowRightIcon } from '../components/icons'
+import Footer from '../components/Footer'
 
 // Placeholder photography — swap for the client's own campaign imagery.
 const DOORS = [
@@ -35,6 +36,7 @@ export default function LandingPage() {
   }, [])
 
   return (
+    <>
     <div className="min-h-dvh flex flex-col bg-ground text-ink overflow-hidden">
       <header className="px-6 pt-9 pb-7 sm:pt-12 sm:pb-9 md:pt-14 md:pb-11 text-center">
         <h1 className="gate-rise font-display font-medium leading-[0.9] tracking-[-0.025em] text-[clamp(3.75rem,12vw,9.5rem)] text-ink">
@@ -76,5 +78,8 @@ export default function LandingPage() {
         ))}
       </div>
     </div>
+
+    <Footer />
+    </>
   )
 }

@@ -3,6 +3,35 @@ const prisma = require('../db')
 // site_config.value is stored as a JSON-encoded string regardless of the
 // underlying type (boolean, number, object, string) so one column can hold
 // all config shapes.
+// Seed footer content: matches the brief's "current footer" spec so the
+// storefront footer looks complete before any admin ever saves.
+const FOOTER_CONFIG_DEFAULT = {
+  headings: { quickLinks: 'Quick Links', categories: 'Top Categories', brands: 'Top Brands' },
+  quickLinks: [
+    { id: 'ql-about', label: 'About', url: '/about', external: false, newTab: false, enabled: true, sortOrder: 0 },
+    { id: 'ql-all-categories', label: 'All Categories', url: '/shop', external: false, newTab: false, enabled: true, sortOrder: 1 },
+    { id: 'ql-brands', label: 'Brands', url: '/shop', external: false, newTab: false, enabled: true, sortOrder: 2 },
+    { id: 'ql-refunds', label: 'Refund and Returns Policy', url: '/refund-policy', external: false, newTab: false, enabled: true, sortOrder: 3 },
+    { id: 'ql-new-arrivals', label: 'New Arrivals', url: '/shop', external: false, newTab: false, enabled: true, sortOrder: 4 },
+    { id: 'ql-wholesale', label: 'Wholesale', url: '/wholesale', external: false, newTab: false, enabled: true, sortOrder: 5 },
+  ],
+  sectionLinks: {
+    men: { enabled: true, label: 'Men', url: '/shop/men', subLinks: [] },
+    women: { enabled: true, label: 'Women', url: '/shop/women', subLinks: [] },
+    kids: { enabled: true, label: 'Kids', url: '/shop/kids', subLinks: [] },
+  },
+  brands: {
+    maxCount: 5,
+    items: [
+      { id: 'brand-zara', name: 'Zara', sortOrder: 0 },
+      { id: 'brand-object', name: 'Object', sortOrder: 1 },
+      { id: 'brand-vila', name: 'Vila', sortOrder: 2 },
+      { id: 'brand-boohoo', name: 'Boohoo', sortOrder: 3 },
+      { id: 'brand-asos', name: 'ASOS', sortOrder: 4 },
+    ],
+  },
+}
+
 const DEFAULTS = {
   maintenance_mode: false,
   section_visibility: { men: true, women: true, kids: true, wholesale: true },
@@ -15,6 +44,7 @@ const DEFAULTS = {
   bank_account_name: () => (process.env.BANK_ACCOUNT_NAME || '').trim(),
   bank_account_number: () => (process.env.BANK_ACCOUNT_NUMBER || '').trim(),
   bank_name: () => (process.env.BANK_NAME || '').trim(),
+  footer_config: FOOTER_CONFIG_DEFAULT,
 }
 
 function defaultFor(key) {
@@ -22,12 +52,44 @@ function defaultFor(key) {
   return typeof def === 'function' ? def() : def
 }
 
-function decode(row) {
-  try {
-    return JSON.parse(row.value)
-  } catch {
-    return row.value
+const SECTION_KEYS = ['men', 'women', 'kids']
+
+// Deep-merges a saved footer_config over FOOTER_CONFIG_DEFAULT so a field
+// missing from an older/partial saved value (e.g. before a new sub-field was
+// added) falls back to its default instead of the page rendering `undefined`.
+// Arrays (quickLinks, subLinks, brands.items) are taken whole from the saved
+// value when present — they're admin-curated lists, not per-item defaults.
+function mergeFooterConfig(saved) {
+  if (!saved || typeof saved !== 'object') return FOOTER_CONFIG_DEFAULT
+  const merged = {
+    headings: { ...FOOTER_CONFIG_DEFAULT.headings, ...(saved.headings || {}) },
+    quickLinks: Array.isArray(saved.quickLinks) ? saved.quickLinks : FOOTER_CONFIG_DEFAULT.quickLinks,
+    sectionLinks: {},
+    brands: {
+      ...FOOTER_CONFIG_DEFAULT.brands,
+      ...(saved.brands || {}),
+      items: Array.isArray(saved.brands?.items) ? saved.brands.items : FOOTER_CONFIG_DEFAULT.brands.items,
+    },
   }
+  for (const key of SECTION_KEYS) {
+    const defaultEntry = FOOTER_CONFIG_DEFAULT.sectionLinks[key]
+    const savedEntry = saved.sectionLinks?.[key]
+    merged.sectionLinks[key] = savedEntry
+      ? { ...defaultEntry, ...savedEntry, subLinks: Array.isArray(savedEntry.subLinks) ? savedEntry.subLinks : defaultEntry.subLinks }
+      : defaultEntry
+  }
+  return merged
+}
+
+function decode(row) {
+  let value
+  try {
+    value = JSON.parse(row.value)
+  } catch {
+    value = row.value
+  }
+  if (row.key === 'footer_config') return mergeFooterConfig(value)
+  return value
 }
 
 async function getConfig(key) {

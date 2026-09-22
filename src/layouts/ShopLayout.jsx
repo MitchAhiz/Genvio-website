@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { Outlet, Navigate, useParams } from 'react-router-dom'
+import { Outlet, Navigate, useParams, useLocation } from 'react-router-dom'
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 import { useTheme } from '../hooks/useTheme'
 import { useSiteConfig } from '../hooks/useSiteConfig'
 import { isSection, getLastSection, getSection, getVisibleSections, rememberSection, sectionPath } from '../sections'
@@ -24,6 +25,7 @@ export default function ShopLayout() {
       <main>
         <Outlet />
       </main>
+      <Footer />
     </div>
   )
 }
@@ -32,19 +34,21 @@ export default function ShopLayout() {
 // section if that one has since been hidden.
 export function ShopIndexRedirect() {
   const { config } = useSiteConfig()
+  const { search } = useLocation()
   const visible = getVisibleSections(config?.section_visibility)
   const last = getLastSection()
   const fallback = visible.some((s) => s.key === last) ? last : visible[0]?.key
-  return <Navigate to={fallback ? sectionPath(fallback) : '/'} replace />
+  return <Navigate to={fallback ? `${sectionPath(fallback)}${search}` : '/'} replace />
 }
 
 // /shop/:section — rejects unknown or admin-hidden sections.
 export function SectionGuard() {
   const { section } = useParams()
   const { config } = useSiteConfig()
+  const { search } = useLocation()
   const visible = getVisibleSections(config?.section_visibility)
   if (!isSection(section) || !visible.some((s) => s.key === section)) {
-    return <Navigate to={visible[0] ? sectionPath(visible[0].key) : '/'} replace />
+    return <Navigate to={visible[0] ? `${sectionPath(visible[0].key)}${search}` : '/'} replace />
   }
   return <Outlet />
 }

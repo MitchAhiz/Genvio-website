@@ -43,6 +43,10 @@ export const updateCategory = (id, name) => patch(`/api/admin/categories/${id}`,
 export const deleteCategory = (id, action, reassignTo) => del(`/api/admin/categories/${id}`, { action, reassignTo })
 export const getCategoryProductCount = (id) => get(`/api/admin/categories/${id}/product-count`)
 
+// --- Brands ---
+
+export const getAdminBrands = () => get('/api/admin/brands')
+
 // --- Orders ---
 
 // No admin listing filters/pagination exist server-side yet — full list is

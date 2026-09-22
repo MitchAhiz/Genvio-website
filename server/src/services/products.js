@@ -49,6 +49,25 @@ async function getCategories({ section } = {}) {
   return results.map((r) => r.category.name).sort((a, b) => a.localeCompare(b))
 }
 
+// Distinct brand names across published products, trimmed and deduped
+// case-insensitively (e.g. "zara" and "Zara" collapse to one entry), for the
+// admin Footer settings brand picker.
+async function getBrands() {
+  const results = await prisma.product.findMany({
+    where: { status: 'published' },
+    select: { brand: true },
+    distinct: ['brand'],
+  })
+  const seen = new Map()
+  for (const { brand } of results) {
+    const trimmed = (brand || '').trim()
+    if (!trimmed) continue
+    const key = trimmed.toLowerCase()
+    if (!seen.has(key)) seen.set(key, trimmed)
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b))
+}
+
 async function getInventory(productId) {
   const variants = await prisma.productVariant.findMany({
     where: { productId },
@@ -271,6 +290,7 @@ module.exports = {
   getProductBySlug,
   getProductById,
   getCategories,
+  getBrands,
   getInventory,
   createProduct,
   updateProduct,

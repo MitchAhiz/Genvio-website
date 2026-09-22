@@ -4,6 +4,7 @@ const {
   getProductBySlug,
   getProductById,
   getCategories,
+  getBrands,
   getInventory,
   createProduct,
   updateProduct,
@@ -64,6 +65,16 @@ router.get('/categories', async (req, res, next) => {
     if (section && !isValidSection(section)) return sectionError(res)
     const categories = await getCategories({ section })
     res.json(categories)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// Admin: distinct brand names for the Footer settings "Top Brands" picker.
+router.get('/admin/brands', requireAdminAuth, async (_req, res, next) => {
+  try {
+    const brands = await getBrands()
+    res.json(brands)
   } catch (err) {
     next(err)
   }

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { getProducts, getCategories } from '../api/products'
 import { SECTIONS, getSection, sectionPath } from '../sections'
 import CategoryPills from '../components/CategoryPills'
@@ -9,6 +9,13 @@ import SortSelect from '../components/SortSelect'
 export default function CataloguePage() {
   const { section } = useParams()
   const meta = getSection(section)
+  // Footer "Top Brands" links land here as /shop/:section?brand=Name — a
+  // plain query param rather than route/local state since it needs to
+  // survive the /shop index-page redirect into whichever section is last
+  // visited, before this component even exists yet.
+  const [searchParams] = useSearchParams()
+  const brandFilter = searchParams.get('brand')
+  const categoryFilter = searchParams.get('category')
 
   const [activeCategory, setActiveCategory] = useState(null)
   const [sort, setSort] = useState('newest')
@@ -41,8 +48,21 @@ export default function CataloguePage() {
     }
   }, [section])
 
+  // Footer sub-links (e.g. Women -> Dresses) land here as ?category=Name,
+  // matched case-insensitively against the section's real category list so
+  // it composes with pill selection and doesn't depend on fetch timing.
+  useEffect(() => {
+    if (!categoryFilter || categories.length === 0) return
+    const match = categories.find((c) => c.toLowerCase() === categoryFilter.toLowerCase())
+    if (match) setActiveCategory(match)
+  }, [categoryFilter, categories])
+
   const filtered = useMemo(() => {
     let list = activeCategory ? products.filter((p) => p.category === activeCategory) : products
+    if (brandFilter) {
+      const needle = brandFilter.toLowerCase()
+      list = list.filter((p) => (p.brand || '').toLowerCase() === needle)
+    }
 
     switch (sort) {
       case 'price-asc':
@@ -58,7 +78,7 @@ export default function CataloguePage() {
         list = [...list].sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0))
     }
     return list
-  }, [products, activeCategory, sort])
+  }, [products, activeCategory, sort, brandFilter])
 
   const otherSections = SECTIONS.filter((s) => s.key !== section)
   const grid = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-10 sm:gap-x-6 sm:gap-y-14'
@@ -129,7 +149,9 @@ export default function CataloguePage() {
           </div>
 
           {filtered.length === 0 && (
-            <p className="text-center text-muted py-24 text-sm">No pieces in this category</p>
+            <p className="text-center text-muted py-24 text-sm">
+              {brandFilter ? `No ${meta.label.toLowerCase()} pieces from ${brandFilter}` : 'No pieces in this category'}
+            </p>
           )}
         </>
       )}
