@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { updateOrderNotes } from '../../api/admin'
+import { updateOrderDeliveryAdmin } from '../../api/adminOrders'
 import { useToast } from '../../hooks/useToast'
 import { NairaAmount } from '../../utils/currency'
+import { NIGERIAN_STATES } from '../../data/nigerianStates'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
 
@@ -21,10 +23,14 @@ function formatDateTime(iso) {
   return new Date(iso).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-export default function OrderDetailDrawer({ order, onClose, onNotesSaved }) {
+export default function OrderDetailDrawer({ order, onClose, onNotesSaved, onDeliveryUpdated }) {
   const { show } = useToast()
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const [editingDelivery, setEditingDelivery] = useState(false)
+  const [draft, setDraft] = useState({ name: '', street: '', city: '', state: '' })
+  const [savingDelivery, setSavingDelivery] = useState(false)
+  const [deliveryError, setDeliveryError] = useState('')
   const drawerRef = useRef(null)
   const previouslyFocused = useRef(null)
   const open = !!order
@@ -81,6 +87,46 @@ export default function OrderDetailDrawer({ order, onClose, onNotesSaved }) {
     }
   }
 
+  const startDeliveryEdit = () => {
+    const address = (order.address && typeof order.address === 'object') ? order.address : {}
+    setDraft({
+      name: address.recipientName || order.customer.name,
+      street: address.street || '',
+      city: address.city || '',
+      state: address.state || '',
+    })
+    setDeliveryError('')
+    setEditingDelivery(true)
+  }
+
+  const saveDelivery = async () => {
+    const name = draft.name.trim()
+    const street = draft.street.trim()
+    const city = draft.city.trim()
+    const state = draft.state
+    if (name.length < 2) {
+      setDeliveryError('Enter the recipient’s full name')
+      return
+    }
+    if (street.length < 3 || city.length < 2 || !state) {
+      setDeliveryError('Enter a street address, city and state')
+      return
+    }
+    setSavingDelivery(true)
+    setDeliveryError('')
+    try {
+      const updated = await updateOrderDeliveryAdmin(order.id, { name, address: { street, city, state } })
+      show('Delivery details updated', 'success')
+      onDeliveryUpdated?.(updated)
+      setEditingDelivery(false)
+    } catch (err) {
+      // The backend message (e.g. validation) is what the admin needs to see.
+      setDeliveryError(err.message || 'Failed to save delivery details')
+    } finally {
+      setSavingDelivery(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[1100] flex justify-end bg-slate-900/50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.() }}>
       <div
@@ -129,14 +175,85 @@ export default function OrderDetailDrawer({ order, onClose, onNotesSaved }) {
         </section>
 
         <section className="mt-5">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Customer</h3>
-          <div className="mt-2 space-y-1 text-sm text-slate-700">
-            <p className="font-medium">{order.customer.name}</p>
-            <p className="text-slate-500">{order.customer.phone}</p>
-            <p className="text-slate-500">
-              {order.address.street}, {order.address.city}, {order.address.state}
-            </p>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Delivery details</h3>
+            {!editingDelivery && (
+              <button
+                type="button"
+                onClick={startDeliveryEdit}
+                className="shrink-0 text-xs font-medium text-slate-600 hover:underline"
+              >
+                Edit
+              </button>
+            )}
           </div>
+          {editingDelivery ? (
+            <div className="mt-2 space-y-3">
+              <input
+                value={draft.name}
+                onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                placeholder="Recipient name"
+                aria-label="Recipient name"
+                className="w-full rounded-md border border-slate-200 px-2.5 py-2 text-sm"
+              />
+              <input
+                value={draft.street}
+                onChange={(e) => setDraft((d) => ({ ...d, street: e.target.value }))}
+                placeholder="Street address"
+                aria-label="Street address"
+                className="w-full rounded-md border border-slate-200 px-2.5 py-2 text-sm"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  value={draft.city}
+                  onChange={(e) => setDraft((d) => ({ ...d, city: e.target.value }))}
+                  placeholder="City"
+                  aria-label="City"
+                  className="w-full rounded-md border border-slate-200 px-2.5 py-2 text-sm"
+                />
+                <select
+                  value={draft.state}
+                  onChange={(e) => setDraft((d) => ({ ...d, state: e.target.value }))}
+                  aria-label="State"
+                  className="w-full rounded-md border border-slate-200 px-2.5 py-2 text-sm"
+                >
+                  <option value="">State…</option>
+                  {NIGERIAN_STATES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              {deliveryError && (
+                <p className="text-xs text-red-600" role="alert">{deliveryError}</p>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setDeliveryError(''); setEditingDelivery(false) }}
+                  disabled={savingDelivery}
+                  className="rounded-md border border-slate-200 px-3.5 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveDelivery}
+                  disabled={savingDelivery}
+                  className="rounded-md bg-slate-900 px-3.5 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  {savingDelivery ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 space-y-1 text-sm text-slate-700">
+              <p className="font-medium">{order.address?.recipientName || order.customer.name}</p>
+              <p className="text-slate-500">{order.customer.phone}</p>
+              <p className="text-slate-500">
+                {order.address.street}, {order.address.city}, {order.address.state}
+              </p>
+            </div>
+          )}
         </section>
 
         <section className="mt-5">

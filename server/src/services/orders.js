@@ -3,6 +3,16 @@ const { upsertCustomer } = require('./customers')
 
 const ORDER_STATUSES = ['pending_payment', 'confirmed', 'processing', 'shipped', 'delivered']
 
+// The single place the "can a customer still edit this order's delivery
+// details?" rule lives. Once an order row exists, the answer is no for every
+// status: the Done step is shown while the status is still pending_payment,
+// so a status-based lock at "confirmed" would not remove the Edit button
+// there. Admin routes never call this helper; they are always allowed to
+// correct details, even on paid orders.
+function isOrderLockedForCustomerEdit(order) {
+  return Boolean(order)
+}
+
 const orderWithCustomer = {
   customer: { select: { id: true, name: true, phone: true } },
 }
@@ -43,11 +53,14 @@ async function createOrder({ phone, name, address, items, total }) {
 
   // Two orders in the same instant could race for a reference; retry on the
   // unique violation rather than lock.
+  // The recipient name is frozen per order (address.recipientName) so the
+  // courier-facing name never changes after payment, even if the shared
+  // Customer record is later overwritten by a differently-named order.
   for (let attempt = 0; attempt < 5; attempt++) {
     const reference = await nextReference()
     try {
       const order = await prisma.order.create({
-        data: { reference, customerId: customer.id, items, address, total },
+        data: { reference, customerId: customer.id, items, address: { ...address, recipientName: name }, total },
         include: orderWithCustomer,
       })
       return { ...order, saveState }
@@ -91,18 +104,47 @@ async function updateOrderStatus(id, status) {
 
 // Customers may correct the delivery details (the name and address the
 // courier sees) right after ordering. The reference acts as the proof they
-// placed it.
+// placed it. This is now locked for every order status once the order exists;
+// see isOrderLockedForCustomerEdit.
 async function updateOrderDelivery(id, reference, { name, address }) {
   const existing = await prisma.order.findUnique({ where: { id } })
   if (!existing || existing.reference !== reference) return { ok: false, error: 'Order not found' }
-  if (existing.status !== 'pending_payment' && existing.status !== 'confirmed') {
-    return { ok: false, error: 'This order is already being processed — contact us to change the delivery details.' }
+  if (isOrderLockedForCustomerEdit(existing)) {
+    return { ok: false, error: "Delivery details can't be changed after payment. Please contact us." }
   }
-  const [order] = await prisma.$transaction([
-    prisma.order.update({ where: { id }, data: { address }, include: orderWithCustomer }),
-    prisma.customer.update({ where: { id: existing.customerId }, data: { name, address } }),
-  ])
+  const order = await prisma.order.update({
+    where: { id },
+    data: { address: { ...address, recipientName: name } },
+    include: orderWithCustomer,
+  })
   return { ok: true, order }
+}
+
+// Admin: correct the delivery details on any order, paid or not. Writes only
+// to Order.address (including the per-order recipientName) and never touches
+// the shared Customer record, so the name and address on OTHER orders by the
+// same customer are unaffected. Returns the previous values so the caller can
+// audit exactly what changed.
+async function updateOrderDeliveryAdmin(id, { name, address }) {
+  const existing = await prisma.order.findUnique({
+    where: { id },
+    include: { customer: { select: { name: true } } },
+  })
+  if (!existing) return { ok: false, error: 'Order not found' }
+
+  // previous is the address as it was stored. recipientName is resolved to
+  // the effective name shown (falls back to customer.name on older orders),
+  // so the audit log records what the courier was actually told, not a null.
+  const previous = {
+    ...(existing.address || {}),
+    recipientName: existing.address?.recipientName || existing.customer.name,
+  }
+  const order = await prisma.order.update({
+    where: { id },
+    data: { address: { ...(existing.address || {}), ...address, recipientName: name } },
+    include: orderWithCustomer,
+  })
+  return { ok: true, order, previous }
 }
 
 async function updateOrderNotes(id, notes) {
@@ -118,10 +160,12 @@ async function updateOrderNotes(id, notes) {
 
 module.exports = {
   ORDER_STATUSES,
+  isOrderLockedForCustomerEdit,
   createOrder,
   listOrders,
   updateOrderStatus,
   updateOrderDelivery,
+  updateOrderDeliveryAdmin,
   updateOrderNotes,
   orderProvesPhone,
 }

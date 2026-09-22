@@ -299,6 +299,10 @@ export default function AdminOrders() {
       <OrderDetailDrawer
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
+        onDeliveryUpdated={(updated) => {
+          setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)))
+          setSelectedOrder(updated)
+        }}
         onNotesSaved={(updated) => {
           setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)))
           setSelectedOrder(updated)
