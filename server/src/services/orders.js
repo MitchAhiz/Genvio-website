@@ -4,14 +4,15 @@ const { upsertCustomer } = require('./customers')
 const ORDER_STATUSES = ['pending_payment', 'confirmed', 'processing', 'shipped', 'delivered']
 
 // The single place the "can a customer still edit this order's delivery
-// details?" rule lives. The Order row is created when the customer taps
-// "I've paid", while the order is still pending_payment — payment has been
-// transferred but not yet verified by the shop. That window stays editable,
-// so only orders whose payment has succeeded (confirmed and later) are
-// locked. Admin routes never call this helper; they are always allowed to
-// correct details, even on paid orders.
+// details?" rule lives. Once the order exists — as soon as the customer sees
+// the payment/account details and creates the order — delivery details are
+// locked for the customer on EVERY status, including pending_payment. There
+// is no post-order edit window; the reference can still prove ownership for
+// other actions, but the courier-facing details are frozen at placement. Any
+// correction must go through the shop (admin route below). Admin routes never
+// call this helper; they are always allowed to correct details.
 function isOrderLockedForCustomerEdit(order) {
-  return Boolean(order) && order.status !== 'pending_payment'
+  return Boolean(order)
 }
 
 const orderWithCustomer = {
