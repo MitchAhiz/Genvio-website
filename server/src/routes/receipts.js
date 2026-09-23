@@ -53,6 +53,25 @@ function publicOrderWithReceipts(order, receipts) {
   }
 }
 
+// Admin: confirm/reject responses. Never orderToken — admin acts under
+// requireAdminAuth, not the customer's token, so it has no business in this
+// payload. order.customer here is already the trimmed { name, phone, email }
+// shape from CUSTOMER_FOR_ORDER_EMAIL in receipts.js's service layer, not
+// the full customer row.
+function adminOrderWithReceipts(order) {
+  return {
+    id: order.id,
+    reference: order.reference,
+    status: order.status,
+    total: order.total,
+    items: order.items,
+    address: order.address,
+    customer: { name: order.customer.name, phone: order.customer.phone },
+    receipts: order.receipts.map(publicReceipt),
+    createdAt: order.createdAt,
+  }
+}
+
 // Public: upload a receipt. Token-gated (the order id alone in the URL is
 // not proof of ownership — see AGENT_RULES / CLAUDE.md conventions), rate
 // limited per order so one customer retrying a flaky upload can't exhaust a
@@ -164,7 +183,7 @@ router.post('/admin/orders/:id/confirm', requireAdminAuth, async (req, res, next
       await logActivity('order.confirmed', 'order', req.params.id, {})
       sendOrderConfirmedEmail(result.order).catch((err) => console.error('[mailer] unexpected error:', err))
     }
-    res.json(result.order)
+    res.json(adminOrderWithReceipts(result.order))
   } catch (err) {
     next(err)
   }
@@ -183,7 +202,7 @@ router.post('/admin/orders/:id/reject', requireAdminAuth, async (req, res, next)
       await logActivity('order.rejected', 'order', req.params.id, { reason })
       sendOrderRejectedEmail(result.order, reason).catch((err) => console.error('[mailer] unexpected error:', err))
     }
-    res.json(result.order)
+    res.json(adminOrderWithReceipts(result.order))
   } catch (err) {
     next(err)
   }

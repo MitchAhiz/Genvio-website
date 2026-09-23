@@ -16,6 +16,12 @@ const {
 // be accepted and reopen verification) are all fine.
 const UPLOADABLE_STATUSES = ['pending_payment', 'pending_verification', 'rejected', 'expired']
 
+// Only what the confirm/reject notification emails actually read (mailer.js:
+// order.customer.email to gate sending, name/phone are shown alongside).
+// Never the full customer row — that includes pinHash, which no endpoint may
+// return.
+const CUSTOMER_FOR_ORDER_EMAIL = { select: { name: true, phone: true, email: true } }
+
 function sha256(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex')
 }
@@ -116,8 +122,26 @@ async function createReceipt({ orderId, orderToken, buffer, mime, ext, declaredF
   }
 }
 
+// Never storageKey (the private bucket path — see the signed-url route) or
+// fileHash (an internal dedup key with no UI purpose). Callers that need
+// even less than this (e.g. the customer-facing publicReceipt() shape)
+// filter further themselves; nothing downstream needs more than this.
 async function listReceiptsForOrder(orderId) {
-  return prisma.paymentReceipt.findMany({ where: { orderId }, orderBy: { uploadedAt: 'desc' } })
+  return prisma.paymentReceipt.findMany({
+    where: { orderId },
+    orderBy: { uploadedAt: 'desc' },
+    select: {
+      id: true,
+      originalFilename: true,
+      fileType: true,
+      fileSize: true,
+      isDuplicate: true,
+      uploadedAt: true,
+      reviewedBy: true,
+      reviewedAt: true,
+      rejectionReason: true,
+    },
+  })
 }
 
 // Live stock-availability check for display in admin — deliberately not
@@ -153,7 +177,7 @@ async function confirmOrder(orderId, adminEmail) {
       if (!order) return { ok: false, status: 404, error: 'Order not found' }
       // Idempotent: a second click just returns the already-confirmed order.
       if (order.status === 'confirmed') {
-        const full = await tx.order.findUnique({ where: { id: orderId }, include: { customer: true, receipts: true } })
+        const full = await tx.order.findUnique({ where: { id: orderId }, include: { customer: CUSTOMER_FOR_ORDER_EMAIL, receipts: true } })
         return { ok: true, order: full, alreadyDone: true }
       }
       if (order.status !== 'pending_verification' && order.status !== 'rejected' && order.status !== 'expired') {
@@ -165,7 +189,7 @@ async function confirmOrder(orderId, adminEmail) {
       const updated = await tx.order.update({
         where: { id: orderId },
         data: { status: 'confirmed' },
-        include: { customer: true, receipts: { orderBy: { uploadedAt: 'desc' } } },
+        include: { customer: CUSTOMER_FOR_ORDER_EMAIL, receipts: { orderBy: { uploadedAt: 'desc' } } },
       })
 
       const latestReceipt = updated.receipts[0]
@@ -188,7 +212,7 @@ async function rejectOrder(orderId, adminEmail, reason) {
       const order = await tx.order.findUnique({ where: { id: orderId } })
       if (!order) return { ok: false, status: 404, error: 'Order not found' }
       if (order.status === 'rejected') {
-        const full = await tx.order.findUnique({ where: { id: orderId }, include: { customer: true, receipts: true } })
+        const full = await tx.order.findUnique({ where: { id: orderId }, include: { customer: CUSTOMER_FOR_ORDER_EMAIL, receipts: true } })
         return { ok: true, order: full, alreadyDone: true }
       }
       if (order.status !== 'pending_verification') {
@@ -200,7 +224,7 @@ async function rejectOrder(orderId, adminEmail, reason) {
       const updated = await tx.order.update({
         where: { id: orderId },
         data: { status: 'rejected' },
-        include: { customer: true, receipts: { orderBy: { uploadedAt: 'desc' } } },
+        include: { customer: CUSTOMER_FOR_ORDER_EMAIL, receipts: { orderBy: { uploadedAt: 'desc' } } },
       })
 
       const latestReceipt = updated.receipts[0]
