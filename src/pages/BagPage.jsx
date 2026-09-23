@@ -1,11 +1,17 @@
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useBag } from '../hooks/useBag'
 import { formatPrice } from '../api/products'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BagIcon } from '../components/icons'
 import Price from '../components/Price'
 import CheckoutOverlay from '../components/checkout/CheckoutOverlay'
 import { useSiteConfig } from '../hooks/useSiteConfig'
+
+// Matches CheckoutOverlay's own key/shape exactly — this seeds the same
+// localStorage entry its restore-on-mount effect already reads, so a
+// rejected-order re-upload email link (mailer.js: sendOrderRejectedEmail)
+// works on a device that never placed the order, not just the one that did.
+const PENDING_ORDER_KEY = 'genvio:pending-order'
 
 const primaryLink =
   'inline-flex items-center h-11 px-6 rounded-md bg-cta text-on-cta text-sm font-semibold tracking-[0.02em] shadow-[0_6px_16px_-6px_rgb(0_0_0/0.35)] hover:bg-cta-hover active:translate-y-px active:shadow-none transition-[background-color,box-shadow,transform] duration-300'
@@ -14,6 +20,7 @@ export default function BagPage() {
   const { items, updateQty, removeItem, itemCount, total } = useBag()
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const { config } = useSiteConfig()
+  const [searchParams, setSearchParams] = useSearchParams()
   // Chose "keep the bag icon visible, disable the action" over hiding the
   // icon entirely: the spec requires browsing/adding-to-bag to keep working
   // when checkout is off, and a visitor needs the bag icon reachable to see
@@ -21,6 +28,32 @@ export default function BagPage() {
   // Missing/loading config defaults to enabled so the button doesn't flash
   // disabled before the first fetch resolves.
   const checkoutEnabled = config?.checkout_enabled !== false
+
+  // A rejected-order email links here as /shop/bag?reupload=<id>&token=<token>.
+  // Seed the exact localStorage entry CheckoutOverlay's own restore-on-mount
+  // effect reads, then open it — from there it's the same "reopen checkout on
+  // a device with a pending order" path Step 3 already built, not a new one.
+  // The params are stripped from the URL once consumed so the token doesn't
+  // linger in the address bar/history after this first load.
+  useEffect(() => {
+    const orderId = searchParams.get('reupload')
+    const orderToken = searchParams.get('token')
+    if (!orderId || !orderToken) return
+    try {
+      localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({ orderId, orderToken }))
+    } catch {
+      // Storage blocked/full — CheckoutOverlay will just find nothing to
+      // restore and start a fresh checkout instead.
+    }
+    setCheckoutOpen(true)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('reupload')
+      next.delete('token')
+      return next
+    }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <>

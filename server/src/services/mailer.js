@@ -186,7 +186,12 @@ async function sendOrderConfirmedEmail(order) {
       subject: `Payment confirmed — order ${order.reference}`,
       html: `
         <h2>Payment confirmed</h2>
-        <p>Your payment for order <strong>${escapeHtml(order.reference)}</strong> has been verified. We're processing your order.</p>
+        <p>Thank you — your payment for order <strong>${escapeHtml(order.reference)}</strong> has been verified. We're processing your order now.</p>
+
+        <h3>Delivery details</h3>
+        <p><strong>${escapeHtml(order.address?.recipientName || order.customer.name)}</strong></p>
+        <p>${escapeHtml(formatAddress(order.address))}</p>
+
         ${itemsTable(order.items)}
         <p><strong>Total: ${formatNaira(order.total)}</strong></p>
       `,
@@ -212,6 +217,7 @@ async function sendOrderRejectedEmail(order, reason) {
         <h2>We couldn't verify your payment</h2>
         <p>Order <strong>${escapeHtml(order.reference)}</strong>: ${escapeHtml(reason)}</p>
         <p><a href="${reuploadLink}">Upload a new receipt for this order →</a></p>
+        <p style="color:#666;font-size:13px;">If you're on the device you used to place this order, you can also just reopen your checkout there — we'll recognize your order and take you straight to payment, no link needed.</p>
       `,
     })
   } catch (err) {
