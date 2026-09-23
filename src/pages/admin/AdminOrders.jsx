@@ -5,20 +5,65 @@ import { CardSkeleton, RowSkeleton } from '../../components/admin/Skeleton'
 import { NairaAmount } from '../../utils/currency'
 import OrderDetailDrawer from '../../components/admin/OrderDetailDrawer'
 
-const STATUSES = ['pending_payment', 'confirmed', 'processing', 'shipped', 'delivered']
+// pending_verification/rejected/expired are set by the receipt confirm/
+// reject flow and the reservation-expiry sweep, not by hand here — but they
+// still need to be listed so the filter can find them and the badge/select
+// for a row in one of these statuses doesn't render blank.
+const STATUSES = [
+  'pending_payment',
+  'pending_verification',
+  'confirmed',
+  'processing',
+  'shipped',
+  'delivered',
+  'rejected',
+  'expired',
+]
 const STATUS_LABEL = {
   pending_payment: 'Pending',
+  pending_verification: 'Paid',
   confirmed: 'Confirmed',
   processing: 'Processing',
   shipped: 'Shipped',
   delivered: 'Delivered',
+  rejected: 'Rejected',
+  expired: 'Expired',
 }
 const STATUS_BADGE = {
   pending_payment: 'bg-amber-100 text-amber-700',
+  pending_verification: 'bg-sky-100 text-sky-700',
   confirmed: 'bg-blue-100 text-blue-700',
   processing: 'bg-blue-100 text-blue-700',
   shipped: 'bg-purple-100 text-purple-700',
   delivered: 'bg-emerald-100 text-emerald-700',
+  rejected: 'bg-rose-100 text-rose-700',
+  expired: 'bg-slate-100 text-slate-500',
+}
+// What the row status <select> may actually be set to by hand — matches the
+// backend's ORDER_STATUSES exactly. pending_verification/rejected/expired
+// are reached only through the receipt confirm/reject actions and the
+// expiry sweep, never picked from this dropdown.
+const EDITABLE_STATUSES = ['pending_payment', 'confirmed', 'processing', 'shipped', 'delivered']
+
+// The manually-settable statuses, plus — only when the row isn't already in
+// one of them — a disabled option for its actual current status, so the
+// <select> always has a matching value instead of rendering blank/mismatched
+// for a pending_verification/rejected/expired order.
+function StatusOptions({ currentStatus }) {
+  return (
+    <>
+      {!EDITABLE_STATUSES.includes(currentStatus) && (
+        <option value={currentStatus} disabled>
+          {STATUS_LABEL[currentStatus] || currentStatus}
+        </option>
+      )}
+      {EDITABLE_STATUSES.map((s) => (
+        <option key={s} value={s}>
+          {STATUS_LABEL[s]}
+        </option>
+      ))}
+    </>
+  )
 }
 
 // Client-side only — no server-side masking exists for admin order phone
@@ -120,7 +165,7 @@ function OrderCard({ order, onChangeStatus, onView }) {
           onChange={(e) => onChangeStatus(e.target.value)}
           className={`flex-1 rounded-md border-0 px-2.5 py-2 text-sm font-medium ${STATUS_BADGE[order.status] || 'bg-slate-100 text-slate-600'}`}
         >
-          {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+          <StatusOptions currentStatus={order.status} />
         </select>
         <button type="button" onClick={onView} className="rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
           View
@@ -282,7 +327,7 @@ export default function AdminOrders() {
                     onChange={(e) => changeStatus(o, e.target.value)}
                     className={`rounded-full border-0 px-2.5 py-1 text-xs font-medium ${STATUS_BADGE[o.status] || 'bg-slate-100 text-slate-600'}`}
                   >
-                    {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                    <StatusOptions currentStatus={o.status} />
                   </select>
                 </td>
                 <td className="px-3 py-2 align-top">

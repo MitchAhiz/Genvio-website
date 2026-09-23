@@ -9,10 +9,13 @@ const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [ta
 
 const STATUS_LABEL = {
   pending_payment: 'Pending',
+  pending_verification: 'Paid',
   confirmed: 'Confirmed',
+  rejected: 'Rejected',
   processing: 'Processing',
   shipped: 'Shipped',
   delivered: 'Delivered',
+  expired: 'Expired',
 }
 
 const PAYMENT_LABEL = {
