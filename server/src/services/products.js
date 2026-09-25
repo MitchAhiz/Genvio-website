@@ -102,63 +102,81 @@ async function createProduct({ slug, name, brand, categoryId, price, section = '
   })
 }
 
+// Thrown inside the updateProduct transaction to reject a reserved-stock
+// violation without leaking a raw Prisma/transaction error to the caller.
+class UpdateProductError extends Error {}
+
 async function updateProduct(id, { name, brand, price, section, categoryId, status, variants }) {
-  await prisma.$transaction(async (tx) => {
-    const updates = {}
-    if (name !== undefined) updates.name = name
-    if (brand !== undefined) updates.brand = brand
-    if (price !== undefined) updates.price = price
-    if (section !== undefined) updates.section = section
-    if (categoryId !== undefined) updates.categoryId = categoryId || null
-    if (status === 'draft') updates.status = 'draft'
+  try {
+    await prisma.$transaction(async (tx) => {
+      const updates = {}
+      if (name !== undefined) updates.name = name
+      if (brand !== undefined) updates.brand = brand
+      if (price !== undefined) updates.price = price
+      if (section !== undefined) updates.section = section
+      if (categoryId !== undefined) updates.categoryId = categoryId || null
+      if (status === 'draft') updates.status = 'draft'
 
-    if (Object.keys(updates).length > 0) {
-      await tx.product.update({ where: { id }, data: updates })
-    }
+      if (Object.keys(updates).length > 0) {
+        await tx.product.update({ where: { id }, data: updates })
+      }
 
-    if (variants && Array.isArray(variants)) {
-      for (const v of variants) {
-        if (v.id) {
-          const variantUpdates = {}
-          if (v.colour !== undefined) variantUpdates.colour = v.colour
-          if (v.imageUrl !== undefined) variantUpdates.imageUrl = v.imageUrl
-          if (Object.keys(variantUpdates).length > 0) {
-            await tx.productVariant.update({ where: { id: v.id }, data: variantUpdates })
-          }
-          if (v.sizes && Array.isArray(v.sizes)) {
-            for (const s of v.sizes) {
-              if (s.id) {
-                await tx.variantSize.update({
-                  where: { id: s.id },
-                  data: { size: s.size, quantity: s.quantity },
-                })
-              } else {
+      if (variants && Array.isArray(variants)) {
+        for (const v of variants) {
+          if (v.id) {
+            const variantUpdates = {}
+            if (v.colour !== undefined) variantUpdates.colour = v.colour
+            if (v.imageUrl !== undefined) variantUpdates.imageUrl = v.imageUrl
+            if (Object.keys(variantUpdates).length > 0) {
+              await tx.productVariant.update({ where: { id: v.id }, data: variantUpdates })
+            }
+            if (v.sizes && Array.isArray(v.sizes)) {
+              for (const s of v.sizes) {
+                if (s.id) {
+                  const current = await tx.variantSize.findUnique({
+                    where: { id: s.id },
+                    select: { size: true, reservedQuantity: true },
+                  })
+                  if (current && s.quantity < current.reservedQuantity) {
+                    throw new UpdateProductError(
+                      `Can't set quantity to ${s.quantity} for size ${current.size} — ${current.reservedQuantity} units are currently reserved by pending orders`
+                    )
+                  }
+                  await tx.variantSize.update({
+                    where: { id: s.id },
+                    data: { size: s.size, quantity: s.quantity },
+                  })
+                } else {
+                  await tx.variantSize.create({
+                    data: { variantId: v.id, size: s.size, quantity: s.quantity },
+                  })
+                }
+              }
+            }
+          } else {
+            const created = await tx.productVariant.create({
+              data: {
+                productId: id,
+                colour: v.colour,
+                imageUrl: v.imageUrl || null,
+              },
+            })
+            if (v.sizes && Array.isArray(v.sizes)) {
+              for (const s of v.sizes) {
                 await tx.variantSize.create({
-                  data: { variantId: v.id, size: s.size, quantity: s.quantity },
+                  data: { variantId: created.id, size: s.size, quantity: s.quantity },
                 })
               }
             }
           }
-        } else {
-          const created = await tx.productVariant.create({
-            data: {
-              productId: id,
-              colour: v.colour,
-              imageUrl: v.imageUrl || null,
-            },
-          })
-          if (v.sizes && Array.isArray(v.sizes)) {
-            for (const s of v.sizes) {
-              await tx.variantSize.create({
-                data: { variantId: created.id, size: s.size, quantity: s.quantity },
-              })
-            }
-          }
         }
       }
-    }
 
-  })
+    })
+  } catch (err) {
+    if (err instanceof UpdateProductError) return { ok: false, error: err.message }
+    throw err
+  }
 
   if (status === 'published') {
     const result = await publishProduct(id)
