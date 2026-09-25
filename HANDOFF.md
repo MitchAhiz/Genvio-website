@@ -756,7 +756,9 @@ codebase:**
 - Status update uses the real endpoint `PATCH /api/orders/:id` (body
   `{ status }`), not `PATCH /api/orders/:id/status` as the spec sketched.
 - Real status enum: `pending_payment · confirmed · processing · shipped
-  · delivered`.
+  · delivered`. **Stale as of the receipt-upload feature** (built in a
+  later session) — `pending_verification`, `rejected`, and `expired`
+  also exist now. See Section 22.
 - No order listing/summary endpoint exists. Summary cards and all
   filtering (status, date range, search) are computed client-side from
   the full order list — explicitly allowed by the spec at current order
@@ -1088,6 +1090,263 @@ scattered across handoff sections):
 
 ---
 
+## 22. Receipt-Upload Feature (Steps 1–4) & Admin Review Screen (Step 5) — Current State
+
+Built in a separate work session outside the Task 01–13 admin-rebuild
+numbering above (token-gated checkout receipt upload, admin confirm/
+reject, customer/admin emails). Not yet reflected in Section 18, which
+predates it — see that section's now-stale "Real status enum" line.
+This section is a read-only investigation (no code changed while
+writing it) into exactly what exists vs. what Step 5 still needs.
+
+### What exists and is verified working (Steps 1–4)
+
+- **Backend:** `server/src/routes/orders.js` (create/lookup/customer
+  delivery-edit; admin status/notes/admin-delivery, all serialized via
+  `publicOrder()` / `publicOrderWithToken()` / `adminOrder()` — the
+  token is returned only from order creation, never from admin or the
+  customer delivery-edit route). `server/src/routes/receipts.js`
+  (upload, lookup, admin confirm/reject via `adminOrderWithReceipts()`,
+  admin receipts list, admin signed-url). `server/src/services/
+  receipts.js` (`createReceipt` with stock reservation, `confirmOrder`/
+  `rejectOrder` with stock deduction/release, `listReceiptsForOrder`
+  scoped to non-sensitive fields only).
+- **Checkout UI:** `CheckoutOverlay.jsx`'s four-step flow (Details →
+  Summary → Payment → Done), `ReceiptUpload.jsx` (file picker,
+  compression, progress, "already uploaded" state), and the
+  `genvio:pending-order` localStorage restore mechanism for reopening
+  checkout on a pending order — same-device by default, and
+  cross-device too as of tonight via `BagPage.jsx` consuming a
+  `?reupload=<id>&token=<token>` URL (see below).
+- **Emails** (`server/src/services/mailer.js`), all fire-and-forget
+  with failures logged via `logActivity` and never blocking the
+  triggering action: `sendOrderNotification` (admin, on order create),
+  `sendReceiptUploadedEmail` (admin, on upload, with file attachment),
+  `sendReceiptReceivedEmail` (customer, on upload),
+  `sendOrderConfirmedEmail` (customer, on confirm — now includes a
+  thank-you line and delivery address), `sendOrderRejectedEmail`
+  (customer, on reject — reupload link plus a same-device fallback
+  line, both added tonight).
+- **Status vocabulary:** `pending_payment → pending_verification →
+  confirmed/rejected → processing/shipped/delivered`, plus `expired`.
+  `AdminOrders.jsx` / `OrderDetailDrawer.jsx` `STATUS_LABEL`/
+  `STATUS_BADGE` now cover all 8 (fixed tonight) — this supersedes
+  Section 18's "Real status enum" line, which only lists 5 and predates
+  the receipt-upload statuses.
+
+### What Step 5 (admin review screen) still needs — confirmed missing by direct search, not assumption
+
+None of the following exist anywhere in `src/` as of tonight:
+
+- **No receipt viewer / signed-URL fetch.** `GET /api/admin/receipts/
+  :id/signed-url` works (returns a 300-second signed URL) but
+  `grep -rln "signed-url\|signedUrl" src/` finds no caller.
+- **No confirm/reject buttons.** `POST /api/admin/orders/:id/confirm`
+  and `/reject` both work (verified live repeatedly tonight) but
+  `src/api/admin.js`'s Orders section only exports `getOrders`,
+  `updateOrderStatus`, `updateOrderNotes` — no client wrapper for
+  either endpoint exists, and neither `OrderDetailDrawer.jsx` nor
+  `AdminOrders.jsx` references them.
+- **No per-order receipts list in the admin UI.** `GET /api/admin/
+  orders/:id/receipts` (receipts + live stock warnings) has no client
+  function and no consumer.
+- **No contact buttons.** `grep -rn "wa.me\|tel:\|mailto:"` across
+  `src/pages/admin` and `src/components/admin` returns nothing — the
+  customer phone is only ever rendered as plain text (masked in the
+  table, unmasked in the drawer), never a tappable link.
+- `OrderDetailDrawer.jsx`'s Status section is read-only
+  (`STATUS_LABEL[order.status]` + last-updated timestamp) — no action
+  lives there yet beyond the existing notes-save and delivery-address
+  edit.
+
+### Two dead links found during this investigation (not fixed — read-only task)
+
+1. **Admin-facing.** `sendReceiptUploadedEmail`'s "Open this order in
+   the admin →" link (`mailer.js`'s `frontendOrderLink()`) points to
+   `/admin?tab=orders&order=${orderId}`. The real admin routes are
+   React Router paths, not a `?tab=` query param (`/admin/orders`,
+   `/admin/products`, etc. — see `src/App.jsx`), and even `/admin/
+   orders` alone has no query-param handling to select or scroll to a
+   specific order (`AdminOrders.jsx` has no `useSearchParams`).
+   Clicking this link today just lands on `/admin/products` (the index
+   redirect), unrelated to the order that triggered the email.
+2. The customer-facing equivalent — `sendOrderRejectedEmail`'s reupload
+   link — was the identical class of bug (a URL with no frontend
+   consumer) and **was fixed tonight**: `BagPage.jsx` now reads
+   `reupload`/`token` on mount, seeds `genvio:pending-order`, and opens
+   `CheckoutOverlay` straight into Payment. The same pattern (read a
+   query param, drive existing state/UI from it) is the fix for #1 too,
+   once Step 5 gives admins a real per-order view to deep-link into.
+
+### Suggested Step 5 scope (planning only — nothing started)
+
+- `src/api/admin.js`: add `confirmOrder(id)`, `rejectOrder(id, reason)`,
+  `getOrderReceipts(id)`, `getReceiptSignedUrl(receiptId)`, wrapping the
+  four backend routes above.
+- `OrderDetailDrawer.jsx`: a receipts section (list via
+  `getOrderReceipts`, fetch-signed-URL-then-open per receipt),
+  Confirm/Reject buttons gated to the same statuses the backend already
+  accepts (`confirmOrder`/`rejectOrder`'s own status guards in
+  `receipts.js`, so the UI never offers an action the backend will 409
+  on), a required reject-reason input matching `POST /admin/orders/:id/
+  reject`'s validation, and WhatsApp/tel/mailto contact buttons from
+  the customer fields already present on the order object.
+- Fix dead link #1 once there's a real per-order deep-link target to
+  point it at.
+
+---
+
+## 23. CSRF Middleware + Taxonomy Migration — State as of 2026-09-25
+
+Working branch: `feature/product-upload-taxonomy`. **Never pushed to
+origin** — `git branch -r` shows only `origin/master`; there is no
+`origin/feature/product-upload-taxonomy`.
+
+### CSRF middleware — committed, tested, isolated
+
+- Commit **`803e8fd`** — "Add double-submit CSRF protection for admin
+  write routes". Confirmed isolated via `git show --stat`: exactly 9
+  files, all CSRF-only (`server/src/middleware/csrf.js`,
+  `server/test/csrf.test.js`, and single-purpose `requireCsrf` wiring
+  in `auth.js`, `categories.js`, `config.js`, `products.js`,
+  `receipts.js`, `wholesale.js`, plus the header-echo in
+  `src/api/client.js`).
+- **Correction to a prior-session note above (now stale):** the
+  `requireCsrf` additions for `POST /admin/orders/:id/confirm` and
+  `/reject` live in **`receipts.js`**, not `orders.js`. `orders.js`
+  carries no CSRF changes at all — an earlier pass in this session
+  incorrectly assumed otherwise; verified directly via `git diff` and
+  corrected before committing.
+- `categories.js` originally mixed CSRF (`requireCsrf` on the three
+  admin category routes) with an unrelated new `writeLimit`
+  rate-limiter ("added for parity" with `subcategories.js`/
+  `sizeRanges.js`, since this router previously had no write rate
+  limiting). Split out at the line level so the commit is CSRF-only —
+  the `writeLimit` addition is still sitting **unstaged, uncommitted**
+  in the working tree, waiting for its own separate commit.
+- `server/test/csrf.test.js` — 11 tests (Tier 1 unit + Tier 2
+  integration through the real `auth.js` router), all passing. Tier 3
+  (real-browser check against `exoticapparels0105@gmail.com`) also
+  done and passing — see prior-session detail preserved below.
+
+### Quantity-guard fix — committed, tested
+
+- Commit **`5f39441`** — "Reject product edits that would drop
+  quantity below reservedQuantity". `updateProduct()` in
+  `server/src/services/products.js` now checks each size's current
+  `reservedQuantity` before applying an admin-supplied `quantity`, and
+  rejects (`{ ok: false, error }`) rather than silently clamping.
+- New `server/test/products.test.js` (5 tests, all passing): rejects a
+  drop below `reservedQuantity` with no clamping, allows updates at/
+  above `reservedQuantity`, allows raising quantity well above it,
+  confirms `reservedQuantity` itself is untouched by this code path
+  (it's not part of the payload), and confirms the guard only fires
+  for the size actually being updated.
+- Full suite: **57/58 passing**. The 1 failure
+  (`orders-delivery-fee.test.js`, "correct total (interstate)") is
+  **pre-existing and unrelated** — caused by an uncommitted
+  `orders.js` change requiring an `email` field that the test's
+  payload doesn't send. Not caused by, or fixed by, any of today's
+  work — see the dedicated subsection below, still open.
+
+### Migrations — both applied and verified live against the database
+
+- **`20260924120000_add_variant_raw_photo_urls`** — clean, no issues.
+  Adds nullable `raw_front_url`/`raw_back_url` to `product_variants`.
+- **`20260924121000_add_subcategories_and_size_ranges`** — hit a
+  naming collision on first apply attempt: `CREATE TABLE
+  "subcategories"` failed with `relation "subcategories_pkey" already
+  exists` (Postgres error 42P07). Root cause, confirmed via
+  `pg_index`/`pg_class`, not guessed: an **older, already-applied,
+  unrelated migration** (`20260916090000_rename_subcategory_to_category`,
+  applied 2026-09-22) renamed a table to `categories` without renaming
+  its primary-key index — that index is still literally named
+  `subcategories_pkey` and is attached to `categories`. Postgres index
+  names are unique per schema, not per table, so the new table's
+  auto-named PK collided with it.
+  **Fix applied:** the new `subcategories` table's PK constraint is
+  now explicitly named `"subcategories_new_pkey"` in the migration SQL
+  (instead of letting Postgres auto-name it `subcategories_pkey`). The
+  old stale index on `categories` was deliberately left completely
+  untouched — confirmed still present and still attached to
+  `categories` after the successful re-run.
+  **⚠️ Known oddity, flagged for anyone reading the schema cold
+  later:** `categories` carries a primary-key index literally named
+  `subcategories_pkey` — a leftover from the 2026-09-16 rename. This
+  is expected and harmless, but looks alarming out of context. Do not
+  "fix" it by renaming/dropping without understanding this history
+  first — `subcategories` (the actual table) has its own,
+  correctly-named `subcategories_new_pkey`.
+- **Post-migration verification** (queried directly via
+  `information_schema`/`pg_constraint`/`pg_index`, not by re-reading
+  the SQL):
+  - `subcategories` table exists with columns `id, category_id, name,
+    created_by, created_at`; PK is `subcategories_new_pkey`.
+  - `size_ranges` table exists with columns `id, category_id,
+    subcategory_id, sizes (jsonb), created_by, updated_by, created_at,
+    updated_at`; PK is `size_ranges_pkey` (no collision, unaffected).
+  - `products.subcategory_id` exists, `text`, nullable.
+  - All three `variant_sizes` CHECK constraints present and correctly
+    named: `variant_sizes_quantity_nonnegative` (`quantity >= 0`),
+    `variant_sizes_reserved_nonnegative` (`reserved_quantity >= 0`),
+    `variant_sizes_reserved_lte_quantity` (`reserved_quantity <=
+    quantity`).
+  - Pre-migration read-only check (`SELECT ... FROM variant_sizes
+    WHERE reserved_quantity > quantity`) returned **zero rows** before
+    the CHECK was added, so it could not have failed on existing data.
+  - Row counts confirmed **unchanged** before → after (migration was
+    additive-only, touched zero data rows): `products: 9, customers:
+    1, orders: 3, categories: 6, variant_sizes: 24`.
+    `subcategories`/`size_ranges` had 0 rows both before (didn't
+    exist) and immediately after (newly created, empty).
+
+### Pre-existing, unrelated bug — still open
+
+`test/orders-delivery-fee.test.js`'s "correct total (interstate) is
+accepted" test fails (400 `"Enter a valid email address"` instead of
+201). Root cause: an uncommitted change to `server/src/routes/orders.js`
+requires `email` via `cleanEmail(body.email)` on `POST /orders`, but
+the test's payload never sends one.
+
+Verified, not assumed:
+- `git diff HEAD -- server/src/routes/orders.js` shows the email
+  requirement only in the working tree; `git log -- server/src/routes/
+  orders.js` shows the last real commit touching the file (`f359334`)
+  predates it.
+- `feature/product-upload-taxonomy` has never been pushed
+  (`git branch -r` → only `origin/master`).
+- `git show origin/master:server/src/routes/orders.js | grep email`
+  finds nothing but an unrelated comment — the deployed backend
+  (Render, tracking `origin/master`) has no email requirement at all.
+- **Conclusion: this cannot be affecting real customer checkout.** It
+  is sitting uncommitted, locally, on a branch nobody has pushed.
+
+**Still not fixed** — left as a known, separate, pre-existing issue so
+it isn't lost or mistaken for something the CSRF/taxonomy/migration
+work broke. Whoever picks up `orders.js` next should either give the
+test an `email` field or confirm the field is intentionally required
+and update the test accordingly.
+
+### Immediate next steps
+
+1. Smoke-test the `subcategories`/`size_ranges` admin API routes live
+   against the now-migrated database — **not yet done**. The tables
+   exist and the schema is verified, but no request has been made
+   through `subcategories.js`/`sizeRanges.js` against real data yet.
+2. Seed one real category → subcategory → size-range chain through the
+   admin UI, to prove the full write path end-to-end before building
+   on top of it.
+3. Start building the actual product-upload form UI + Gemini
+   integration + Supabase Storage wiring for `raw_front_url`/
+   `raw_back_url` — **nothing on that front exists yet**. Everything
+   done so far is schema/API/security groundwork.
+
+---
+
 *End of handoff. Task 13 (deployment) is functionally complete — see
 Section 21 for what's still open before this can go live for real
-customers.*
+customers. Section 22 covers the separate receipt-upload feature and
+what Step 5 (admin review screen) still needs. Section 23 covers the
+CSRF hardening work, the reserved-quantity guard, and the taxonomy
+migration — all now committed/applied/verified — plus the immediate
+next steps for the product-upload feature itself.*
