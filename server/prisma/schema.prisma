@@ -8,19 +8,22 @@ datasource db {
 }
 
 model Product {
-  id         String   @id @default(cuid())
-  slug       String   @unique
-  name       String
-  brand      String
-  price      Int
-  section    String   @default("women")
-  status     String   @default("draft")
-  categoryId String?  @map("category_id")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  brand         String
+  price         Int
+  section       String   @default("women")
+  status        String   @default("draft")
+  categoryId    String?  @map("category_id")
+  subcategoryId String?  @map("subcategory_id")
+  createdBy     String?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  images   ProductImage[]
-  variants ProductVariant[]
-  category Category?        @relation(fields: [categoryId], references: [id])
+  images      ProductImage[]
+  variants    ProductVariant[]
+  category    Category?        @relation(fields: [categoryId], references: [id])
+  subcategory Subcategory?     @relation(fields: [subcategoryId], references: [id])
 
   @@index([section, status])
   @@map("products")
@@ -139,6 +142,13 @@ model ProductVariant {
   productId String @map("product_id")
   colour   String
   imageUrl String? @map("image_url")
+  // Real front/back photos (not the AI-generated card image above) — shown
+  // in the storefront product-detail gallery. rawFrontUrl is required by the
+  // application at write time; rawBackUrl is optional. See
+  // product-upload-project.md §5.
+  rawFrontUrl String? @map("raw_front_url")
+  rawBackUrl  String? @map("raw_back_url")
+  createdBy   String? @map("created_by")
 
   product Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   sizes   VariantSize[]
@@ -153,12 +163,60 @@ model VariantSize {
   quantity  Int    @default(0)
   // Held by orders in pending_verification (Order.reservedUntil). Available
   // stock is always quantity - reservedQuantity; quantity itself is only
-  // decremented when an order is confirmed.
-  reservedQuantity Int @default(0) @map("reserved_quantity")
+  // decremented when an order is confirmed. DB-enforced via the
+  // variant_sizes_reserved_lte_quantity CHECK (reserved_quantity <= quantity)
+  // added in the add_subcategories_and_size_ranges migration.
+  reservedQuantity Int      @default(0) @map("reserved_quantity")
+  updatedBy        String?  @map("updated_by")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
 
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@map("variant_sizes")
+}
+
+// Second taxonomy level under Category (e.g. Category "Dresses" ->
+// Subcategory "Midi", "Maxi"). Same shape and reassign-or-unpublish delete
+// semantics as Category — see server/src/services/categoryService.js and
+// the commit history behind server/prisma/migrations/
+// 20260916090000_rename_subcategory_to_category for why that pattern
+// exists and why it's being mirrored rather than reinvented.
+model Subcategory {
+  id         String   @id @default(cuid())
+  categoryId String   @map("category_id")
+  name       String
+  createdBy  String   @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  category   Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products   Product[]
+  sizeRanges SizeRange[]
+
+  @@unique([categoryId, name])
+  @@map("subcategories")
+}
+
+// One ordered list of size labels per (category, subcategory) pair — drives
+// the Step 4 stock grid in the upload form. See product-upload-project.md
+// §4 Step 4 / §8. Deliberately a single JSONB array column, not a child
+// rows-per-size table: there's no per-size metadata beyond display order,
+// so a join table would be pure ceremony (CLAUDE.md §10: don't
+// over-engineer).
+model SizeRange {
+  id            String   @id @default(cuid())
+  categoryId    String   @map("category_id")
+  subcategoryId String   @map("subcategory_id")
+  sizes         Json
+  createdBy     String   @map("created_by")
+  updatedBy     String?  @map("updated_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subcategory Subcategory @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, subcategoryId])
+  @@map("size_ranges")
 }
 
 model SiteConfig {
@@ -173,10 +231,17 @@ model SiteConfig {
 model Category {
   id        String   @id @default(cuid())
   name      String
-  section   String
+  // Nullable since the Men/Women/Kids restructure (migration
+  // 20260925120000_add_men_women_kids_parent_categories): the 3 new
+  // top-level rows have no section of their own -- they ARE the section.
+  // Only the 6 pre-existing rows (now also Subcategory rows) still carry
+  // a value here, kept untouched pending Migration B.
+  section   String?
   createdAt DateTime @default(now()) @map("created_at")
 
-  products Product[]
+  products      Product[]
+  subcategories Subcategory[]
+  sizeRanges    SizeRange[]
 
   @@map("categories")
 }
