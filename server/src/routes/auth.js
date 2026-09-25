@@ -12,11 +12,29 @@ const {
 } = require('../services/auth')
 const { requireAdminAuth } = require('../middleware/auth')
 const { requireCsrf, issueCsrfToken, clearCsrfToken } = require('../middleware/csrf')
+const { rateLimit } = require('../middleware/rateLimit')
 const { logActivity } = require('../utils/logActivity')
 
 const router = Router()
 
-router.post('/auth/request-otp', async (req, res, next) => {
+// Tighter than customers.js's public 10/10min routes — this is a single
+// admin account, not a general customer-facing endpoint, so there's no
+// legitimate reason for high-frequency traffic. 3/10min is enough for a
+// real admin to recover from a mistyped email or an expired code without
+// friction, while capping how fast an attacker can spam OTP emails to the
+// admin's inbox (or burn through Brevo's send quota).
+const requestOtpLimit = rateLimit({ name: 'auth-request-otp', limit: 3, windowMs: 10 * 60 * 1000 })
+
+// Paired with the per-code MAX_OTP_ATTEMPTS cap in services/auth.js: this
+// limits how fast a single IP can throw guesses at verify-otp regardless of
+// which code they're guessing against, while the per-code cap stops a
+// distributed/rotating-IP attacker from working around this by spreading
+// attempts across many IPs. 5/10min comfortably covers a real admin typing
+// the right code on the first or second try (with room for a fat-fingered
+// third).
+const verifyOtpLimit = rateLimit({ name: 'auth-verify-otp', limit: 5, windowMs: 10 * 60 * 1000 })
+
+router.post('/auth/request-otp', requestOtpLimit, async (req, res, next) => {
   try {
     const { email } = req.body
     if (!email) return res.status(400).json({ error: 'Email is required' })
@@ -41,7 +59,7 @@ router.post('/auth/request-otp', async (req, res, next) => {
   }
 })
 
-router.post('/auth/verify-otp', (req, res, next) => {
+router.post('/auth/verify-otp', verifyOtpLimit, (req, res, next) => {
   try {
     const { email, code } = req.body
     if (!email || !code) return res.status(400).json({ error: 'Email and code are required' })

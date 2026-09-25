@@ -5,13 +5,21 @@ const sessionStore = new Map()
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000
 const SESSION_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000
+// Per-code attempt cap, independent of the IP-based rate limit on the route.
+// A 6-digit code has 900,000 possibilities; without this, a distributed or
+// rotating-IP attacker could grind through the space across many IPs within
+// the 10-minute window despite the route-level limiter. Invalidating the
+// code outright after this many wrong guesses (rather than just slowing
+// them down) means the attacker's per-code budget is fixed regardless of
+// how many IPs or how much of the 10 minutes they have left.
+const MAX_OTP_ATTEMPTS = 5
 
 function generateOtp() {
   return String(Math.floor(100000 + Math.random() * 900000))
 }
 
 function storeOtp(email, code) {
-  otpStore.set(email, { code, expiresAt: Date.now() + OTP_EXPIRY_MS })
+  otpStore.set(email, { code, expiresAt: Date.now() + OTP_EXPIRY_MS, attempts: 0 })
 }
 
 function verifyOtp(email, code) {
@@ -21,7 +29,14 @@ function verifyOtp(email, code) {
     otpStore.delete(email)
     return { ok: false, error: 'Code has expired. Request a new one.' }
   }
-  if (entry.code !== code) return { ok: false, error: 'Invalid or expired code' }
+  if (entry.code !== code) {
+    entry.attempts += 1
+    if (entry.attempts >= MAX_OTP_ATTEMPTS) {
+      otpStore.delete(email)
+      return { ok: false, error: 'Too many incorrect attempts. Request a new code.' }
+    }
+    return { ok: false, error: 'Invalid or expired code' }
+  }
   otpStore.delete(email)
   return { ok: true }
 }
