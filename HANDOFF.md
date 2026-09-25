@@ -1327,6 +1327,38 @@ work broke. Whoever picks up `orders.js` next should either give the
 test an `email` field or confirm the field is intentionally required
 and update the test accordingly.
 
+### Known, deliberately deferred issue — variant/size deletion can orphan a reservation
+
+Found during this session's security review (LOW severity — not
+exploitable, a data-integrity/UX gap, not a security hole). Not fixed
+this session; documented here so it isn't lost or rediscovered cold.
+
+`deleteVariantSize`/`deleteVariant` in `server/src/services/
+products.js` currently allow deleting a size or variant even when its
+`reservedQuantity > 0` — i.e. even while a `pending_verification`
+order is actively holding stock against it. Nothing blocks or warns on
+this today. The consequence: `resolveVariantSize()` in `server/src/
+services/reservations.js` already anticipates rows disappearing
+mid-flight and just silently skips them (`if (!variantSize) continue`)
+— so that order can later be confirmed with zero stock actually
+deducted anywhere, no error, no warning to the admin.
+
+This does **not** bypass the `reserved_quantity <= quantity` guard
+(today's DB CHECK constraint and the `updateProduct` app-layer guard):
+deleting a row doesn't write an invalid quantity, it just removes the
+row the reservation was tracking against. Every direct writer of
+`variant_sizes.quantity` was checked during the review and none can
+push it below `reservedQuantity` — this is a separate, adjacent gap.
+
+**Decided direction (not yet built): warn-but-allow.** Before deleting
+a variant/size with `reservedQuantity > 0`, the UI should show a clear
+warning naming the reservation — e.g. "this size has N units reserved
+by a pending order — deleting it will leave that order unable to
+fulfill this item" — and let the admin proceed if they choose. No
+auto-release of the reservation, no hard block. Revisit and build this
+deliberately later, as its own scoped piece of work, not as a
+same-session add-on to the security-fix pass.
+
 ### Immediate next steps
 
 1. Smoke-test the `subcategories`/`size_ranges` admin API routes live
