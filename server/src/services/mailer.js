@@ -83,7 +83,7 @@ const MAX_EMAIL_ATTACHMENT_BYTES = 7 * 1024 * 1024
 
 function frontendOrderLink(orderId) {
   const base = (process.env.FRONTEND_URL || 'https://genvio-website.vercel.app').replace(/\/$/, '')
-  return `${base}/admin?tab=orders&order=${orderId}`
+  return `${base}/admin/orders?order=${orderId}`
 }
 
 async function sendBrevoEmail({ to, subject, html, attachment }) {

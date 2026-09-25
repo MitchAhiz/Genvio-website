@@ -22,8 +22,8 @@ export function declineSaveDetails({ phone, reference }) {
   return apiFetch('/api/customers/decline-save', jsonOptions('POST', { phone, reference }))
 }
 
-export function createOrder({ phone, name, address, items, total, deliveryZone }) {
-  return apiFetch('/api/orders', jsonOptions('POST', { phone, name, address, items, total, deliveryZone }))
+export function createOrder({ phone, name, email, isWhatsapp, address, items, total, deliveryZone }) {
+  return apiFetch('/api/orders', jsonOptions('POST', { phone, name, email, isWhatsapp, address, items, total, deliveryZone }))
 }
 
 export function getPaymentConfig() {

@@ -92,11 +92,11 @@ async function declineSavingDetails(phone) {
 // The record is kept so the admin can group orders by customer. It is written
 // from what the customer typed on this order, and never read back to the
 // frontend except through verifyPin.
-async function upsertCustomer({ phone, name, address }) {
+async function upsertCustomer({ phone, name, email, isWhatsapp, address }) {
   return prisma.customer.upsert({
     where: { phone },
-    create: { phone, name, address },
-    update: { name, address },
+    create: { phone, name, email, isWhatsapp, address },
+    update: { name, email, isWhatsapp, address },
   })
 }
 

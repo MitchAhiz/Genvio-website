@@ -30,6 +30,8 @@ export default function SummaryStep({
   onBack,
   onEditDetails,
   onContinue,
+  submitting = false,
+  submitError = '',
 }) {
   const count = items.reduce((n, i) => n + i.qty, 0)
   const { config } = useSiteConfig()
@@ -107,17 +109,23 @@ export default function SummaryStep({
         </p>
       )}
 
+      {submitError && (
+        <p className="mt-6 text-sm text-danger" role="alert">
+          {submitError}
+        </p>
+      )}
+
       <div className="mt-8 flex gap-3">
-        <button type="button" onClick={onBack} className={quiet}>
+        <button type="button" onClick={onBack} disabled={submitting} className={quiet}>
           Back
         </button>
         <button
           type="button"
           onClick={onContinue}
-          disabled={belowMin}
+          disabled={belowMin || submitting}
           className={`${primary} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-cta`}
         >
-          Continue to payment
+          {submitting ? 'Placing your order…' : 'Continue to payment'}
         </button>
       </div>
     </div>

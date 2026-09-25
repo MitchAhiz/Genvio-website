@@ -50,7 +50,9 @@ export default function DoneStep({ order, saveState, active, onDone }) {
           </span>
         )}
         <p className="mt-4 text-sm text-ink-soft max-w-xs leading-relaxed">
-          We’ll verify your payment and process your order. Keep this reference to hand.
+          Receipt received. We’re confirming your transfer for order{' '}
+          <span className="text-ink font-medium">{order.reference}</span>. We’ll update you by WhatsApp/phone and
+          email once it’s verified.
         </p>
         <p className="mt-3 font-display text-2xl sm:text-3xl text-ink tracking-[0.04em] tabular-nums select-all">
           {order.reference}

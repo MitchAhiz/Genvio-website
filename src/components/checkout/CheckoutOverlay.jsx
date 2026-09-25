@@ -8,6 +8,46 @@ import SummaryStep from './SummaryStep'
 import PaymentStep from './PaymentStep'
 import DoneStep from './DoneStep'
 import { deliveryFeeFor, deliveryLabelFor } from '../../utils/delivery'
+import { createOrder } from '../../api/orders'
+import { lookupOrder } from '../../api/receipts'
+
+// The order is created once, on Summary -> Payment (not on upload), so
+// order.reference and order.orderToken exist before the receipt step ever
+// renders. Persisting the two here lets a customer who closes the sheet
+// after this point reopen it straight into the pending-upload state
+// instead of being asked to pay again.
+const PENDING_ORDER_KEY = 'genvio:pending-order'
+// Only these statuses still have something to do on the Payment step —
+// anything else (confirmed and beyond) has nothing left to restore into.
+const RESTORABLE_STATUSES = ['pending_payment', 'pending_verification', 'rejected', 'expired']
+
+function loadPendingOrderRef() {
+  try {
+    const raw = localStorage.getItem(PENDING_ORDER_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return parsed?.orderId && parsed?.orderToken ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function savePendingOrderRef(order) {
+  try {
+    localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({ orderId: order.id, orderToken: order.orderToken }))
+  } catch {
+    // Storage blocked/full — the order still exists server-side, only the
+    // "reopen where I left off" convenience is lost.
+  }
+}
+
+function clearPendingOrderRef() {
+  try {
+    localStorage.removeItem(PENDING_ORDER_KEY)
+  } catch {
+    // Nothing to do if storage is unavailable.
+  }
+}
 
 const STEPS = [
   { key: 'details', label: 'Details', title: 'Your details' },
@@ -19,6 +59,8 @@ const STEPS = [
 const EMPTY_DETAILS = {
   phone: '',
   name: '',
+  email: '',
+  isWhatsapp: true,
   deliveryZone: '',
   address: { street: '', city: '', state: '' },
 }
@@ -45,6 +87,11 @@ export default function CheckoutOverlay({ onClose }) {
   const [saveState, setSaveState] = useState(null)
   const [closing, setClosing] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [creatingOrder, setCreatingOrder] = useState(false)
+  const [createError, setCreateError] = useState('')
+  // 'checking' while the localStorage restore is in flight, so the sheet
+  // doesn't flash the Details step before jumping to Payment.
+  const [restoring, setRestoring] = useState(true)
 
   // After submission the bag is cleared; later steps read from the order.
   const lineItems = order ? order.items.map((i, idx) => ({ ...i, id: `${i.productId}-${idx}` })) : items
@@ -74,6 +121,40 @@ export default function CheckoutOverlay({ onClose }) {
       if (order) navigate('/shop')
     }, 330)
   }, [closing, onClose, order, navigate])
+
+  // On open, check for a pending order left over from a previous visit
+  // (closed after the order was created, before/during upload) and jump
+  // straight to Payment with it restored, instead of starting over.
+  useEffect(() => {
+    const ref = loadPendingOrderRef()
+    if (!ref) {
+      setRestoring(false)
+      return
+    }
+    let cancelled = false
+    lookupOrder(ref.orderId, ref.orderToken)
+      .then((restored) => {
+        if (cancelled) return
+        if (RESTORABLE_STATUSES.includes(restored.status)) {
+          setOrder(restored)
+          setStep(2)
+        } else {
+          // Confirmed and beyond — nothing left to restore into.
+          clearPendingOrderRef()
+        }
+      })
+      .catch(() => {
+        // Order gone, token stale, or a network hiccup — fall back to a
+        // fresh checkout rather than getting stuck.
+        clearPendingOrderRef()
+      })
+      .finally(() => {
+        if (!cancelled) setRestoring(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Remember what opened the sheet, and hand focus back on the way out.
   useEffect(() => {
@@ -199,10 +280,63 @@ export default function CheckoutOverlay({ onClose }) {
     }
   }
 
-  const submitted = (placed) => {
-    setOrder(placed)
-    setSaveState(placed.saveState || 'saved')
-    clearBag()
+  // Summary -> Payment: create the order now (not on upload), so
+  // order.reference and order.orderToken exist before the receipt step
+  // renders and can be shown/copied and persisted immediately.
+  const goToPayment = async () => {
+    if (creatingOrder) return
+    // Already created this session (e.g. customer went Payment -> Back ->
+    // Summary -> Continue again) — reuse it rather than placing a second
+    // order. Matches the delivery-lock behaviour: once an order exists its
+    // details are frozen, so re-editing Details/Summary at this point has
+    // no server-side effect anyway.
+    if (order) {
+      setStep(2)
+      return
+    }
+    setCreatingOrder(true)
+    setCreateError('')
+    try {
+      const placed = await createOrder({
+        phone: details.phone,
+        name: details.name,
+        email: details.email,
+        isWhatsapp: details.isWhatsapp,
+        deliveryZone: details.deliveryZone || null,
+        address: {
+          street: details.address.street.trim(),
+          city: details.address.city.trim(),
+          state: details.address.state,
+        },
+        items: items.map((i) => ({
+          productId: i.productId,
+          name: i.name,
+          brand: i.brand,
+          colour: i.colour,
+          size: i.size,
+          image: i.image,
+          qty: i.qty,
+          unitPrice: i.unitPrice,
+        })),
+        total,
+      })
+      setOrder(placed)
+      setSaveState(placed.saveState || 'saved')
+      savePendingOrderRef(placed)
+      clearBag()
+      setStep(2)
+    } catch (err) {
+      setCreateError(err.message || 'Something went wrong placing your order. Please try again.')
+    } finally {
+      setCreatingOrder(false)
+    }
+  }
+
+  // Called by PaymentStep once a receipt has been uploaded — the order
+  // already exists (created above), this just carries the refreshed order
+  // (now including the new receipt) into the Done step.
+  const submitted = (updatedOrder) => {
+    setOrder(updatedOrder)
     setStep(3)
   }
 
@@ -270,42 +404,49 @@ export default function CheckoutOverlay({ onClose }) {
         </header>
 
         <div ref={bodyRef} className="checkout-body overflow-y-auto overflow-x-hidden min-h-0">
-          <div className="checkout-track" style={{ transform: `translateX(-${step * 100}%)` }}>
-            <section {...panelProps(0)}>
-              <DetailsStep details={details} setDetails={setDetails} onContinue={() => setStep(1)} />
-            </section>
-            <section {...panelProps(1)}>
-              <SummaryStep
-                items={lineItems}
-                subtotal={productSubtotal}
-                deliveryFee={deliveryFee}
-                deliveryLabel={deliveryLabel}
-                total={grandTotal}
-                details={details}
-                onBack={() => setStep(0)}
-                onEditDetails={() => setStep(0)}
-                onContinue={() => setStep(2)}
-              />
-            </section>
-            <section {...panelProps(2)}>
-              <PaymentStep
-                items={lineItems}
-                total={grandTotal}
-                details={details}
-                active={step === 2}
-                onBack={() => setStep(1)}
-                onSubmitted={submitted}
-              />
-            </section>
-            <section {...panelProps(3)}>
-              <DoneStep
-                order={order}
-                saveState={saveState}
-                active={step === 3}
-                onDone={close}
-              />
-            </section>
-          </div>
+          {restoring ? (
+            <div className="px-5 sm:px-8 py-16 flex justify-center">
+              <p className="text-sm text-muted">Just a moment…</p>
+            </div>
+          ) : (
+            <div className="checkout-track" style={{ transform: `translateX(-${step * 100}%)` }}>
+              <section {...panelProps(0)}>
+                <DetailsStep details={details} setDetails={setDetails} onContinue={() => setStep(1)} />
+              </section>
+              <section {...panelProps(1)}>
+                <SummaryStep
+                  items={lineItems}
+                  subtotal={productSubtotal}
+                  deliveryFee={deliveryFee}
+                  deliveryLabel={deliveryLabel}
+                  total={grandTotal}
+                  details={details}
+                  onBack={() => setStep(0)}
+                  onEditDetails={() => setStep(0)}
+                  onContinue={goToPayment}
+                  submitting={creatingOrder}
+                  submitError={createError}
+                />
+              </section>
+              <section {...panelProps(2)}>
+                <PaymentStep
+                  order={order}
+                  total={grandTotal}
+                  active={step === 2}
+                  onBack={() => setStep(1)}
+                  onSubmitted={submitted}
+                />
+              </section>
+              <section {...panelProps(3)}>
+                <DoneStep
+                  order={order}
+                  saveState={saveState}
+                  active={step === 3}
+                  onDone={close}
+                />
+              </section>
+            </div>
+          )}
         </div>
       </div>
     </div>

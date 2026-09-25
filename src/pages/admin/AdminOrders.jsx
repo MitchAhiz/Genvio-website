@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { getOrders, updateOrderStatus } from '../../api/admin'
 import { useToast } from '../../hooks/useToast'
 import { CardSkeleton, RowSkeleton } from '../../components/admin/Skeleton'
@@ -185,14 +186,17 @@ export default function AdminOrders() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounced(search)
   const [selectedOrder, setSelectedOrder] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const load = async () => {
     setLoading(true)
     try {
       const data = await getOrders()
       setOrders(data)
+      return data
     } catch (err) {
       show(err.message || 'Failed to load orders', 'error')
+      return null
     } finally {
       setLoading(false)
     }
@@ -202,6 +206,23 @@ export default function AdminOrders() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Deep link from the "Open this order in the admin" email (see
+  // frontendOrderLink in server/src/services/mailer.js) — open that order's
+  // drawer once the list has loaded, then drop the param so a refresh/close
+  // doesn't keep re-opening it.
+  useEffect(() => {
+    const orderId = searchParams.get('order')
+    if (!orderId || orders.length === 0) return
+    const match = orders.find((o) => o.id === orderId)
+    if (match) setSelectedOrder(match)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('order')
+      return next
+    }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders])
 
   const filtered = useMemo(() => {
     let list = orders
@@ -226,6 +247,19 @@ export default function AdminOrders() {
     }
     return list
   }, [orders, status, dateFrom, dateTo, debouncedSearch])
+
+  // Confirm/reject responses (adminOrderWithReceipts in receipts.js) carry a
+  // smaller shape than the canonical adminOrder() used by GET /api/orders
+  // (no paymentMethod/notes/updatedAt, customer trimmed to name+phone) — so
+  // rather than merge that partial shape into local state, just refetch the
+  // full list and reselect by id to stay on the canonical shape everywhere.
+  const handleStatusChanged = async (orderId) => {
+    const data = await load()
+    if (data) {
+      const match = data.find((o) => o.id === orderId)
+      if (match) setSelectedOrder(match)
+    }
+  }
 
   const changeStatus = async (order, newStatus) => {
     if (newStatus === order.status) return
@@ -344,6 +378,7 @@ export default function AdminOrders() {
       <OrderDetailDrawer
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
+        onStatusChanged={handleStatusChanged}
         onDeliveryUpdated={(updated) => {
           setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)))
           setSelectedOrder(updated)

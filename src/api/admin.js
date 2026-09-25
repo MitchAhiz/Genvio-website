@@ -56,6 +56,13 @@ export const getOrders = () => get('/api/orders')
 export const updateOrderStatus = (id, status) => patch(`/api/orders/${id}`, { status })
 export const updateOrderNotes = (id, notes) => patch(`/api/orders/${id}/notes`, { notes })
 
+// --- Receipts (Step 5 — admin review screen) ---
+
+export const getOrderReceipts = (orderId) => get(`/api/admin/orders/${orderId}/receipts`)
+export const getReceiptSignedUrl = (receiptId) => get(`/api/admin/receipts/${receiptId}/signed-url`)
+export const confirmOrder = (orderId) => post(`/api/admin/orders/${orderId}/confirm`)
+export const rejectOrder = (orderId, reason) => post(`/api/admin/orders/${orderId}/reject`, { reason })
+
 // --- Analytics ---
 
 export const getRevenueAnalytics = (period) => get('/api/analytics/revenue', { period })

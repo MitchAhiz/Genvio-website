@@ -1,9 +1,36 @@
 import { useEffect, useRef, useState } from 'react'
-import { updateOrderNotes } from '../../api/admin'
+import {
+  updateOrderNotes,
+  getOrderReceipts,
+  getReceiptSignedUrl,
+  confirmOrder as confirmOrderApi,
+  rejectOrder as rejectOrderApi,
+} from '../../api/admin'
 import { updateOrderDeliveryAdmin } from '../../api/adminOrders'
+import ConfirmDialog from './ConfirmDialog'
 import { useToast } from '../../hooks/useToast'
 import { NairaAmount } from '../../utils/currency'
 import { NIGERIAN_STATES } from '../../data/nigerianStates'
+
+// Matches the backend's own guards in server/src/services/receipts.js so the
+// UI never offers an action the backend would 409 on.
+const CONFIRMABLE_STATUSES = ['pending_verification', 'rejected', 'expired']
+const REJECTABLE_STATUSES = ['pending_verification']
+
+// wa.me/tel:/sms: all want a bare international number, no leading zero.
+// Phones are stored normalized as 0XXXXXXXXXX (see server/src/utils/sanitize.js).
+function toInternationalPhone(phone) {
+  const digits = String(phone || '').replace(/\D/g, '')
+  if (digits.startsWith('0')) return '234' + digits.slice(1)
+  return digits
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes)) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
 
@@ -26,7 +53,7 @@ function formatDateTime(iso) {
   return new Date(iso).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-export default function OrderDetailDrawer({ order, onClose, onNotesSaved, onDeliveryUpdated }) {
+export default function OrderDetailDrawer({ order, onClose, onNotesSaved, onDeliveryUpdated, onStatusChanged }) {
   const { show } = useToast()
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
@@ -34,6 +61,16 @@ export default function OrderDetailDrawer({ order, onClose, onNotesSaved, onDeli
   const [draft, setDraft] = useState({ name: '', street: '', city: '', state: '' })
   const [savingDelivery, setSavingDelivery] = useState(false)
   const [deliveryError, setDeliveryError] = useState('')
+  const [receipts, setReceipts] = useState([])
+  const [stockWarnings, setStockWarnings] = useState([])
+  const [receiptsLoading, setReceiptsLoading] = useState(false)
+  const [viewer, setViewer] = useState(null) // { url, fileType } while an image receipt is open
+  const [viewingReceiptId, setViewingReceiptId] = useState(null)
+  const [confirming, setConfirming] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+  const [showRejectInput, setShowRejectInput] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const drawerRef = useRef(null)
   const previouslyFocused = useRef(null)
   const open = !!order
@@ -41,7 +78,31 @@ export default function OrderDetailDrawer({ order, onClose, onNotesSaved, onDeli
   useEffect(() => {
     if (!order) return
     setNotes(order.notes || '')
+    setShowRejectInput(false)
+    setRejectReason('')
+    setShowConfirmDialog(false)
+    setViewer(null)
   }, [order])
+
+  useEffect(() => {
+    if (!order) return
+    let cancelled = false
+    setReceiptsLoading(true)
+    getOrderReceipts(order.id)
+      .then((data) => {
+        if (cancelled) return
+        setReceipts(data.receipts || [])
+        setStockWarnings(data.stockWarnings || [])
+      })
+      .catch((err) => {
+        if (!cancelled) show(err.message || 'Failed to load receipts', 'error')
+      })
+      .finally(() => {
+        if (!cancelled) setReceiptsLoading(false)
+      })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id])
 
   useEffect(() => {
     if (!open) return
@@ -129,6 +190,76 @@ export default function OrderDetailDrawer({ order, onClose, onNotesSaved, onDeli
       setSavingDelivery(false)
     }
   }
+
+  const refetchReceipts = async () => {
+    try {
+      const data = await getOrderReceipts(order.id)
+      setReceipts(data.receipts || [])
+      setStockWarnings(data.stockWarnings || [])
+    } catch {
+      // Non-fatal — the confirm/reject action itself already succeeded and
+      // updated the order; a stale receipts list just means a manual reopen
+      // is needed to see reviewedBy/reviewedAt, not a broken action.
+    }
+  }
+
+  const viewReceipt = async (receipt) => {
+    setViewingReceiptId(receipt.id)
+    try {
+      const { url } = await getReceiptSignedUrl(receipt.id)
+      if (receipt.fileType?.startsWith('image/')) {
+        setViewer({ url, fileType: receipt.fileType })
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
+    } catch (err) {
+      show(err.message || 'Failed to open receipt', 'error')
+    } finally {
+      setViewingReceiptId(null)
+    }
+  }
+
+  const handleConfirm = async () => {
+    setShowConfirmDialog(false)
+    setConfirming(true)
+    try {
+      await confirmOrderApi(order.id)
+      show('Order confirmed', 'success')
+      onStatusChanged?.(order.id)
+      refetchReceipts()
+    } catch (err) {
+      show(err.message || 'Failed to confirm order', 'error')
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  const handleReject = async () => {
+    const reason = rejectReason.trim()
+    if (!reason) {
+      show('Enter a reason for rejecting this order', 'error')
+      return
+    }
+    setRejecting(true)
+    try {
+      await rejectOrderApi(order.id, reason)
+      show('Order rejected', 'success')
+      onStatusChanged?.(order.id)
+      setShowRejectInput(false)
+      setRejectReason('')
+      refetchReceipts()
+    } catch (err) {
+      show(err.message || 'Failed to reject order', 'error')
+    } finally {
+      setRejecting(false)
+    }
+  }
+
+  const phone = order.customer?.phone
+  const intlPhone = toInternationalPhone(phone)
+  const whatsappHref = phone
+    ? `https://wa.me/${intlPhone}?text=${encodeURIComponent(`Hi ${order.customer.name}, this is Genvio Exotic Apparel regarding your order ${order.reference}.`)}`
+    : null
 
   return (
     <div className="fixed inset-0 z-[1100] flex justify-end bg-slate-900/50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.() }}>
@@ -257,6 +388,32 @@ export default function OrderDetailDrawer({ order, onClose, onNotesSaved, onDeli
               </p>
             </div>
           )}
+          {phone && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {order.customer.isWhatsapp && (
+                <a
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                >
+                  WhatsApp
+                </a>
+              )}
+              <a
+                href={`tel:+${intlPhone}`}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Call
+              </a>
+              <a
+                href={`sms:+${intlPhone}`}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                SMS
+              </a>
+            </div>
+          )}
         </section>
 
         <section className="mt-5">
@@ -270,6 +427,149 @@ export default function OrderDetailDrawer({ order, onClose, onNotesSaved, onDeli
           <p className="mt-2 text-sm text-slate-700">
             {STATUS_LABEL[order.status] || order.status} <span className="text-slate-400">— updated {formatDateTime(order.updatedAt)}</span>
           </p>
+        </section>
+
+        <section className="mt-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Receipts</h3>
+
+          {receiptsLoading && (
+            <p className="mt-2 text-sm text-slate-400">Loading receipts…</p>
+          )}
+
+          {!receiptsLoading && receipts.length === 0 && (
+            <p className="mt-2 text-sm text-slate-400">No receipts uploaded for this order yet.</p>
+          )}
+
+          {!receiptsLoading && receipts.length > 0 && (
+            <ul className="mt-2 space-y-2">
+              {receipts.map((r) => (
+                <li key={r.id} className="rounded-md border border-slate-200 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">{r.originalFilename}</p>
+                      <p className="text-xs text-slate-400">
+                        {formatFileSize(r.fileSize)} · uploaded {formatDateTime(r.uploadedAt)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => viewReceipt(r)}
+                      disabled={viewingReceiptId === r.id}
+                      className="shrink-0 rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                    >
+                      {viewingReceiptId === r.id ? 'Opening…' : 'View'}
+                    </button>
+                  </div>
+
+                  {r.isDuplicate && (
+                    <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800" role="alert">
+                      ⚠ This exact file was already uploaded to a different order — check it isn't being reused.
+                    </p>
+                  )}
+
+                  {r.reviewedBy && (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Reviewed by {r.reviewedBy} — {formatDateTime(r.reviewedAt)}
+                      {r.rejectionReason ? <>: <span className="text-slate-600">“{r.rejectionReason}”</span></> : null}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {stockWarnings.length > 0 && (
+            <div className="mt-3 rounded-md bg-rose-50 px-2.5 py-2 text-xs text-rose-700">
+              <p className="font-medium">Stock check</p>
+              <ul className="mt-1 list-disc pl-4">
+                {stockWarnings.map((w, i) => (
+                  <li key={i}>
+                    {w.name} ({[w.colour, w.size].filter(Boolean).join(' / ')}) —{' '}
+                    {w.reason === 'no_longer_exists' ? 'no longer exists' : `only ${w.available} left, ${w.qty} needed`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {viewer && (
+            <div
+              className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/80 p-4"
+              onMouseDown={(e) => { if (e.target === e.currentTarget) setViewer(null) }}
+            >
+              <div className="relative max-h-full max-w-full">
+                <img src={viewer.url} alt="Receipt" className="max-h-[85vh] max-w-full rounded-md object-contain" />
+                <button
+                  type="button"
+                  onClick={() => setViewer(null)}
+                  aria-label="Close receipt viewer"
+                  className="absolute -top-3 -right-3 rounded-full bg-white p-1.5 text-slate-600 shadow"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(CONFIRMABLE_STATUSES.includes(order.status) || REJECTABLE_STATUSES.includes(order.status)) && (
+            <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+              <p className="text-xs text-slate-500">
+                Only confirm after checking the credit has actually landed in your bank account. Receipts can be faked.
+              </p>
+
+              {showRejectInput ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    rows={2}
+                    placeholder="Reason for rejecting this order (shown to the customer)…"
+                    className="w-full resize-none rounded-md border border-slate-200 px-2.5 py-2 text-sm"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setShowRejectInput(false); setRejectReason('') }}
+                      disabled={rejecting}
+                      className="rounded-md border border-slate-200 px-3.5 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReject}
+                      disabled={rejecting || !rejectReason.trim()}
+                      className="rounded-md bg-rose-600 px-3.5 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+                    >
+                      {rejecting ? 'Rejecting…' : 'Confirm rejection'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-end gap-2">
+                  {REJECTABLE_STATUSES.includes(order.status) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectInput(true)}
+                      className="rounded-md border border-rose-200 px-3.5 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50"
+                    >
+                      Reject
+                    </button>
+                  )}
+                  {CONFIRMABLE_STATUSES.includes(order.status) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmDialog(true)}
+                      disabled={confirming}
+                      className="rounded-md bg-emerald-600 px-3.5 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+                    >
+                      {confirming ? 'Confirming…' : 'Confirm payment'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="mt-5 flex flex-1 flex-col">
@@ -291,6 +591,16 @@ export default function OrderDetailDrawer({ order, onClose, onNotesSaved, onDeli
           </button>
         </section>
       </div>
+
+      <ConfirmDialog
+        open={showConfirmDialog}
+        title="Confirm this order?"
+        message="Only confirm after checking the credit has actually landed in your bank account. Receipts can be faked."
+        confirmLabel="Confirm payment"
+        danger={false}
+        onConfirm={handleConfirm}
+        onClose={() => setShowConfirmDialog(false)}
+      />
     </div>
   )
 }

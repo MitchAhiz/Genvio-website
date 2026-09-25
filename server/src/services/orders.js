@@ -17,7 +17,7 @@ function isOrderLockedForCustomerEdit(order) {
 }
 
 const orderWithCustomer = {
-  customer: { select: { id: true, name: true, phone: true } },
+  customer: { select: { id: true, name: true, phone: true, email: true, isWhatsapp: true } },
 }
 
 function todayStamp() {
@@ -50,13 +50,13 @@ function saveStateFor(customer) {
   return 'offer'
 }
 
-async function createOrder({ phone, name, address, items, total }) {
+async function createOrder({ phone, name, email, isWhatsapp, address, items, total }) {
   // Keep stock numbers fresh at the moment a new order is placed — see
   // reservations.js and AGENT_RULES.md; correctness never depends solely on
   // the periodic sweep having fired.
   await releaseExpiredReservations()
 
-  const customer = await upsertCustomer({ phone, name, address })
+  const customer = await upsertCustomer({ phone, name, email, isWhatsapp, address })
   const saveState = saveStateFor(customer)
 
   // Two orders in the same instant could race for a reference; retry on the

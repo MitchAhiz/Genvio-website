@@ -15,10 +15,13 @@ const LAGOS_ZONES = [
 const primary =
   'w-full h-12 rounded-md bg-cta text-on-cta text-sm font-semibold tracking-[0.02em] shadow-[0_6px_16px_-6px_rgb(0_0_0/0.35)] hover:bg-cta-hover active:translate-y-px active:shadow-none disabled:bg-transparent disabled:text-muted disabled:border disabled:border-line disabled:shadow-none disabled:cursor-not-allowed transition-[background-color,border-color,color,box-shadow,transform] duration-300'
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
 function validate(d) {
   const errors = {}
   if (!normalizeNgPhone(d.phone)) errors.phone = 'Enter a valid Nigerian mobile number, e.g. 0801 234 5678'
   if (d.name.trim().length < 2) errors.name = 'Enter your full name'
+  if (!EMAIL_PATTERN.test(d.email.trim())) errors.email = 'Enter a valid email address'
   if (d.address.street.trim().length < 3) errors.street = 'Enter your street address'
   if (d.address.city.trim().length < 2) errors.city = 'Enter your city'
   if (!d.address.state) errors.state = 'Choose your state'
@@ -140,7 +143,7 @@ export default function DetailsStep({ details, setDetails, onContinue }) {
       ? 'Just a moment…'
       : lookup === 'error'
         ? 'We couldn’t check that number, but you can still continue.'
-        : 'We’ll use this to confirm your order — e.g. 0801 234 5678.'
+        : 'WhatsApp number preferred, so we can send order updates there.'
 
   const showGreeting = lookup === 'known' && !pinOffer
 
@@ -172,6 +175,15 @@ export default function DetailsStep({ details, setDetails, onContinue }) {
             <p className="text-xs text-muted">{phoneHint}</p>
           )}
         </div>
+        <label className="mt-2.5 flex items-center gap-2 text-sm text-ink-soft">
+          <input
+            type="checkbox"
+            checked={details.isWhatsapp}
+            onChange={(e) => set({ isWhatsapp: e.target.checked })}
+            className="h-4 w-4 rounded border-line accent-[var(--color-accent)]"
+          />
+          This number is on WhatsApp
+        </label>
       </div>
 
       {/* The PIN offer. Never blocks the form beneath it. */}
@@ -239,6 +251,19 @@ export default function DetailsStep({ details, setDetails, onContinue }) {
           error={errors.name}
           revealed={revealed}
           revealIndex={0}
+        />
+        <Field
+          label="Email"
+          name="email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          value={details.email}
+          onChange={(e) => {
+            set({ email: e.target.value })
+            clearError('email')
+          }}
+          error={errors.email}
         />
       </div>
 

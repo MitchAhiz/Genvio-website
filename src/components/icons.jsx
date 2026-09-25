@@ -63,6 +63,25 @@ export function CloseIcon({ size = 18, ...props }) {
   )
 }
 
+export function UploadIcon({ size = 20, ...props }) {
+  return (
+    <svg {...base} width={size} height={size} {...props}>
+      <path d="M12 16V4" />
+      <path d="m7 9 5-5 5 5" />
+      <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </svg>
+  )
+}
+
+export function FileIcon({ size = 20, ...props }) {
+  return (
+    <svg {...base} width={size} height={size} {...props}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6" />
+    </svg>
+  )
+}
+
 export function CheckIcon({ size = 20, ...props }) {
   return (
     <svg {...base} width={size} height={size} {...props}>
