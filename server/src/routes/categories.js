@@ -9,9 +9,19 @@ const {
 
 const { requireAdminAuth } = require('../middleware/auth')
 const { requireCsrf } = require('../middleware/csrf')
+const { rateLimit } = require('../middleware/rateLimit')
 const { SECTIONS, isValidSection } = require('../constants')
 
 const router = Router()
+
+// Same 60/10min-per-staff-account pattern as subcategories.js/sizeRanges.js,
+// added here for parity — this router previously had no write rate limiting.
+const writeLimit = rateLimit({
+  name: 'categories-write',
+  limit: 60,
+  windowMs: 10 * 60 * 1000,
+  key: (req) => req.adminEmail,
+})
 
 function sectionError(res) {
   return res.status(400).json({ error: `section must be one of: ${SECTIONS.join(', ')}` })
@@ -37,7 +47,7 @@ router.get('/admin/categories/:id/product-count', requireAdminAuth, async (req, 
   }
 })
 
-router.post('/admin/categories', requireAdminAuth, requireCsrf, async (req, res, next) => {
+router.post('/admin/categories', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const { name, section } = req.body
     if (!name || typeof name !== 'string' || !name.trim() || name.length > 100) {
@@ -51,7 +61,7 @@ router.post('/admin/categories', requireAdminAuth, requireCsrf, async (req, res,
   }
 })
 
-router.patch('/admin/categories/:id', requireAdminAuth, requireCsrf, async (req, res, next) => {
+router.patch('/admin/categories/:id', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const { name } = req.body
     if (!name || typeof name !== 'string' || !name.trim() || name.length > 100) {
@@ -65,7 +75,7 @@ router.patch('/admin/categories/:id', requireAdminAuth, requireCsrf, async (req,
   }
 })
 
-router.delete('/admin/categories/:id', requireAdminAuth, requireCsrf, async (req, res, next) => {
+router.delete('/admin/categories/:id', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const { action, reassignTo } = req.body || {}
     const result = await deleteCategory(req.params.id, { action, reassignTo })

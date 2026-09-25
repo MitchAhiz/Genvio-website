@@ -43,6 +43,21 @@ export const updateCategory = (id, name) => patch(`/api/admin/categories/${id}`,
 export const deleteCategory = (id, action, reassignTo) => del(`/api/admin/categories/${id}`, { action, reassignTo })
 export const getCategoryProductCount = (id) => get(`/api/admin/categories/${id}/product-count`)
 
+// --- Subcategories ---
+
+export const getSubcategories = (categoryId) => get('/api/admin/subcategories', { categoryId })
+export const createSubcategory = (categoryId, name) => post('/api/admin/subcategories', { categoryId, name })
+export const updateSubcategory = (id, name) => patch(`/api/admin/subcategories/${id}`, { name })
+export const deleteSubcategory = (id, action, reassignTo) => del(`/api/admin/subcategories/${id}`, { action, reassignTo })
+export const getSubcategoryProductCount = (id) => get(`/api/admin/subcategories/${id}/product-count`)
+
+// --- Size ranges ---
+
+export const getSizeRange = (categoryId, subcategoryId) =>
+  get('/api/admin/size-ranges', { category: categoryId, subcategory: subcategoryId })
+export const saveSizeRange = (categoryId, subcategoryId, sizes) =>
+  apiFetch('/api/admin/size-ranges', jsonOptions('PUT', { categoryId, subcategoryId, sizes }))
+
 // --- Brands ---
 
 export const getAdminBrands = () => get('/api/admin/brands')
