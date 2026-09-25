@@ -2,10 +2,21 @@ const { Router } = require('express')
 const { getConfig, getAllConfig, setConfigBulk, getConfigHistory, PAGE_SLUG_TO_KEY } = require('../services/configService')
 const { requireAdminAuth } = require('../middleware/auth')
 const { requireCsrf } = require('../middleware/csrf')
+const { rateLimit } = require('../middleware/rateLimit')
 const { cleanEmail } = require('../utils/sanitize')
 const { logActivity } = require('../utils/logActivity')
 
 const router = Router()
+
+// Same tighter 30/10min pattern as sizeRanges.js — site-wide config writes
+// are rarer than product/category edits, so this stays below the 60/10min
+// used for those.
+const writeLimit = rateLimit({
+  name: 'config-write',
+  limit: 30,
+  windowMs: 10 * 60 * 1000,
+  key: (req) => req.adminEmail,
+})
 
 const SECTION_KEYS = ['men', 'women', 'kids']
 const MAX_QUICK_LINKS = 12
@@ -291,7 +302,7 @@ router.get('/config/history', requireAdminAuth, async (req, res, next) => {
 })
 
 // Admin: bulk-update any subset of known config keys.
-router.patch('/config', requireAdminAuth, requireCsrf, async (req, res, next) => {
+router.patch('/config', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const body = req.body || {}
     const keys = Object.keys(body)
