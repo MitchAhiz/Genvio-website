@@ -94,20 +94,37 @@ async function resolveUniqueSlug(baseSlug) {
   }
 }
 
+// categoryId comes straight from the client on both create and update; the
+// DB foreign key (products_category_id_fkey) would eventually reject a bad
+// id anyway, but only as an unhandled 500 — checked here first so a
+// mistyped/stale id gets a clean 400 instead, same pattern as
+// subcategories.js's categoryExists() / sizeRanges.js's validScope().
+async function categoryExists(categoryId) {
+  return Boolean(await prisma.category.findUnique({ where: { id: categoryId }, select: { id: true } }))
+}
+
 async function createProduct({ slug, name, brand, categoryId, price, section = 'women' }) {
+  if (categoryId && !(await categoryExists(categoryId))) {
+    return { ok: false, error: 'categoryId is not a valid category' }
+  }
   const uniqueSlug = await resolveUniqueSlug(slug)
-  return prisma.product.create({
+  const product = await prisma.product.create({
     data: { slug: uniqueSlug, name, brand, categoryId, price, section, status: 'draft' },
     include: productWithRelations,
   })
+  return { ok: true, product }
 }
 
 // Thrown inside the updateProduct transaction to reject a reserved-stock
-// violation without leaking a raw Prisma/transaction error to the caller.
+// violation, or an invalid categoryId, without leaking a raw Prisma/
+// transaction error to the caller.
 class UpdateProductError extends Error {}
 
 async function updateProduct(id, { name, brand, price, section, categoryId, status, variants }) {
   try {
+    if (categoryId && !(await categoryExists(categoryId))) {
+      throw new UpdateProductError('categoryId is not a valid category')
+    }
     await prisma.$transaction(async (tx) => {
       const updates = {}
       if (name !== undefined) updates.name = name

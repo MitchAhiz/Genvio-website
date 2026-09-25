@@ -115,8 +115,9 @@ router.post('/products', requireAdminAuth, requireCsrf, writeLimit, async (req, 
       return res.status(400).json({ error: 'Price must be a positive number' })
     }
     if (section !== undefined && !isValidSection(section)) return sectionError(res)
-    const product = await createProduct({ slug, name, brand, categoryId, price, section })
-    res.status(201).json(product)
+    const result = await createProduct({ slug, name, brand, categoryId, price, section })
+    if (!result.ok) return res.status(400).json({ error: result.error })
+    res.status(201).json(result.product)
   } catch (err) {
     next(err)
   }
@@ -192,6 +193,12 @@ router.post('/products/:id/images', requireAdminAuth, requireCsrf, writeLimit, a
     const { urls } = req.body
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return res.status(400).json({ error: 'Provide { urls: ["..."] } with at least one URL' })
+    }
+    // Same http(s)-only check as wholesale.js's image URLs — closes the gap
+    // before the planned Gemini pipeline starts feeding URLs into this same
+    // code path.
+    if (!urls.every((u) => typeof u === 'string' && /^https?:\/\//i.test(u.trim()))) {
+      return res.status(400).json({ error: 'Each URL must start with http:// or https://' })
     }
     const images = await addImages(req.params.id, urls)
     res.status(201).json(images)
