@@ -20,6 +20,7 @@ const {
 } = require('../services/products')
 
 const { requireAdminAuth } = require('../middleware/auth')
+const { requireCsrf } = require('../middleware/csrf')
 const { validateSession } = require('../services/auth')
 const { SECTIONS, isValidSection } = require('../constants')
 
@@ -91,7 +92,7 @@ router.get('/inventory/:productId', async (req, res, next) => {
 
 // --- Write endpoints (require admin auth) ---
 
-router.post('/products', requireAdminAuth, async (req, res, next) => {
+router.post('/products', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const { slug, name, brand, categoryId, price, section } = req.body
     if (!slug || !name || !brand || !categoryId || price == null) {
@@ -108,7 +109,7 @@ router.post('/products', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.patch('/products/:id', requireAdminAuth, async (req, res, next) => {
+router.patch('/products/:id', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const existing = await getProductById(req.params.id)
     if (!existing) return res.status(404).json({ error: 'Product not found' })
@@ -129,7 +130,7 @@ router.patch('/products/:id', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.post('/products/bulk', requireAdminAuth, async (req, res, next) => {
+router.post('/products/bulk', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const { ids, action } = req.body
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -145,7 +146,7 @@ router.post('/products/bulk', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.post('/products/:id/unpublish', requireAdminAuth, async (req, res, next) => {
+router.post('/products/:id/unpublish', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const result = await unpublishProduct(req.params.id)
     if (!result.ok) return res.status(404).json({ error: result.error })
@@ -155,7 +156,7 @@ router.post('/products/:id/unpublish', requireAdminAuth, async (req, res, next) 
   }
 })
 
-router.patch('/products/:id/images/reorder', requireAdminAuth, async (req, res, next) => {
+router.patch('/products/:id/images/reorder', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const existing = await getProductById(req.params.id)
     if (!existing) return res.status(404).json({ error: 'Product not found' })
@@ -170,7 +171,7 @@ router.patch('/products/:id/images/reorder', requireAdminAuth, async (req, res, 
   }
 })
 
-router.post('/products/:id/images', requireAdminAuth, async (req, res, next) => {
+router.post('/products/:id/images', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const existing = await getProductById(req.params.id)
     if (!existing) return res.status(404).json({ error: 'Product not found' })
@@ -186,7 +187,7 @@ router.post('/products/:id/images', requireAdminAuth, async (req, res, next) => 
   }
 })
 
-router.post('/products/:id/publish', requireAdminAuth, async (req, res, next) => {
+router.post('/products/:id/publish', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const result = await publishProduct(req.params.id)
     if (!result.ok) {
@@ -199,7 +200,7 @@ router.post('/products/:id/publish', requireAdminAuth, async (req, res, next) =>
   }
 })
 
-router.delete('/products/:id', requireAdminAuth, async (req, res, next) => {
+router.delete('/products/:id', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const result = await deleteProduct(req.params.id)
     if (!result.ok) {
@@ -212,7 +213,7 @@ router.delete('/products/:id', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.delete('/images/:id', requireAdminAuth, async (req, res, next) => {
+router.delete('/images/:id', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const result = await deleteImage(req.params.id)
     if (!result.ok) return res.status(404).json({ error: result.error })
@@ -222,7 +223,7 @@ router.delete('/images/:id', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.delete('/variants/:id', requireAdminAuth, async (req, res, next) => {
+router.delete('/variants/:id', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const result = await deleteVariant(req.params.id)
     if (!result.ok) return res.status(404).json({ error: result.error })
@@ -232,7 +233,7 @@ router.delete('/variants/:id', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.delete('/variants/:variantId/sizes/:sizeId', requireAdminAuth, async (req, res, next) => {
+router.delete('/variants/:variantId/sizes/:sizeId', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const result = await deleteVariantSize(req.params.sizeId)
     if (!result.ok) return res.status(404).json({ error: result.error })

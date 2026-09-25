@@ -8,6 +8,7 @@ const {
 } = require('../services/categoryService')
 
 const { requireAdminAuth } = require('../middleware/auth')
+const { requireCsrf } = require('../middleware/csrf')
 const { SECTIONS, isValidSection } = require('../constants')
 
 const router = Router()
@@ -36,7 +37,7 @@ router.get('/admin/categories/:id/product-count', requireAdminAuth, async (req, 
   }
 })
 
-router.post('/admin/categories', requireAdminAuth, async (req, res, next) => {
+router.post('/admin/categories', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const { name, section } = req.body
     if (!name || typeof name !== 'string' || !name.trim() || name.length > 100) {
@@ -50,7 +51,7 @@ router.post('/admin/categories', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.patch('/admin/categories/:id', requireAdminAuth, async (req, res, next) => {
+router.patch('/admin/categories/:id', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const { name } = req.body
     if (!name || typeof name !== 'string' || !name.trim() || name.length > 100) {
@@ -64,7 +65,7 @@ router.patch('/admin/categories/:id', requireAdminAuth, async (req, res, next) =
   }
 })
 
-router.delete('/admin/categories/:id', requireAdminAuth, async (req, res, next) => {
+router.delete('/admin/categories/:id', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const { action, reassignTo } = req.body || {}
     const result = await deleteCategory(req.params.id, { action, reassignTo })

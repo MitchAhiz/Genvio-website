@@ -1,6 +1,7 @@
 const { Router } = require('express')
 const { getConfig, getAllConfig, setConfigBulk, getConfigHistory, PAGE_SLUG_TO_KEY } = require('../services/configService')
 const { requireAdminAuth } = require('../middleware/auth')
+const { requireCsrf } = require('../middleware/csrf')
 const { cleanEmail } = require('../utils/sanitize')
 const { logActivity } = require('../utils/logActivity')
 
@@ -290,7 +291,7 @@ router.get('/config/history', requireAdminAuth, async (req, res, next) => {
 })
 
 // Admin: bulk-update any subset of known config keys.
-router.patch('/config', requireAdminAuth, async (req, res, next) => {
+router.patch('/config', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const body = req.body || {}
     const keys = Object.keys(body)

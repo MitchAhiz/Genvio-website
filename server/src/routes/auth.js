@@ -11,6 +11,7 @@ const {
   SESSION_EXPIRY_MS,
 } = require('../services/auth')
 const { requireAdminAuth } = require('../middleware/auth')
+const { requireCsrf, issueCsrfToken, clearCsrfToken } = require('../middleware/csrf')
 const { logActivity } = require('../utils/logActivity')
 
 const router = Router()
@@ -63,6 +64,7 @@ router.post('/auth/verify-otp', (req, res, next) => {
       maxAge: SESSION_EXPIRY_MS,
       secure: process.env.NODE_ENV === 'production',
     })
+    issueCsrfToken(res)
     res.json({ success: true })
   } catch (err) {
     next(err)
@@ -73,6 +75,7 @@ router.post('/auth/logout', (req, res) => {
   const token = req.cookies?.admin_session
   if (token) destroySession(token)
   res.clearCookie('admin_session')
+  clearCsrfToken(res)
   res.json({ success: true })
 })
 
@@ -93,9 +96,10 @@ router.get('/auth/me', (req, res) => {
 // own. The frontend must treat a successful response as an immediate
 // logout — the cookie this request came in on is dead the instant this
 // returns.
-router.post('/auth/invalidate-all', requireAdminAuth, (req, res) => {
+router.post('/auth/invalidate-all', requireAdminAuth, requireCsrf, (req, res) => {
   destroyAllSessions()
   res.clearCookie('admin_session')
+  clearCsrfToken(res)
   logActivity('auth.sessions_invalidated', 'session', null, {}).catch(() => {})
   res.json({ success: true })
 })
