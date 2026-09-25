@@ -109,6 +109,8 @@ function seedOrder({ id, reference, status = 'confirmed', address, recipientName
 let baseUrl
 let server
 let adminCookie
+let csrfToken
+let csrfHeaderName
 
 before(async () => {
   require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: prismaStub }
@@ -125,11 +127,18 @@ before(async () => {
   // The real auth middleware stays in place: requireAdminAuth validates the
   // admin_session cookie against the in-memory session store (no DB), so a
   // request without a cookie is rejected 401, and authenticated tests use a
-  // real token minted with createSession.
+  // real token minted with createSession. Admin writes now also carry the
+  // real requireCsrf middleware (added alongside PATCH /admin/orders/:id/
+  // delivery — see server/src/middleware/csrf.js), so admin requests below
+  // mint a real csrf_token/x-csrf-token pair the same way csrf.test.js does,
+  // rather than sending the session cookie alone.
 
   const router = require(path.join(__dirname, '..', 'src', 'routes', 'orders.js'))
   const { createSession } = require(path.join(__dirname, '..', 'src', 'services', 'auth.js'))
-  adminCookie = `admin_session=${createSession('admin@example.com')}`
+  const { issueCsrfToken, COOKIE_NAME, HEADER_NAME } = require(path.join(__dirname, '..', 'src', 'middleware', 'csrf.js'))
+  csrfToken = issueCsrfToken({ cookie() {}, clearCookie() {} })
+  csrfHeaderName = HEADER_NAME
+  adminCookie = `admin_session=${createSession('admin@example.com')}; ${COOKIE_NAME}=${csrfToken}`
 
   const app = express()
   app.use(express.json())
@@ -161,7 +170,7 @@ async function patch(url, body, { admin = false } = {}) {
     method: 'PATCH',
     headers: {
       'content-type': 'application/json',
-      ...(admin ? { cookie: adminCookie } : {}),
+      ...(admin ? { cookie: adminCookie, [csrfHeaderName]: csrfToken } : {}),
     },
     body: JSON.stringify(body),
   })
