@@ -45,8 +45,18 @@ export default function UploadPage() {
   const { capabilities, error: capError } = useUploadCapabilities()
 
   const [womenCategoryId, setWomenCategoryId] = useState(null)
+  const [categoryStatus, setCategoryStatus] = useState('loading') // 'loading' | 'ready' | 'missing'
   useEffect(() => {
-    getAdminCategories('women').then((cats) => setWomenCategoryId(cats[0]?.id || null)).catch(() => {})
+    getAdminCategories('women')
+      .then((cats) => {
+        if (cats[0]?.id) {
+          setWomenCategoryId(cats[0].id)
+          setCategoryStatus('ready')
+        } else {
+          setCategoryStatus('missing')
+        }
+      })
+      .catch(() => setCategoryStatus('missing'))
   }, [])
 
   const [mode, setMode] = useState('new') // 'new' | 'restock'
@@ -176,6 +186,24 @@ export default function UploadPage() {
       </div>
     )
   }
+
+  // Every field/step below (sub-category dropdown, size range) depends on a
+  // "Women" category existing — without it the form would otherwise render
+  // with a permanently-disabled, unexplained "Save colour" button instead
+  // of telling staff what's actually missing.
+  if (categoryStatus === 'missing') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-center">
+        <div>
+          <p className="text-lg font-semibold text-slate-900">No "Women" category configured</p>
+          <p className="mt-1 max-w-sm text-sm text-slate-500">
+            Set one up under Admin → Products → Manage Categories before using this page.
+          </p>
+        </div>
+      </div>
+    )
+  }
+  if (categoryStatus === 'loading') return null
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
