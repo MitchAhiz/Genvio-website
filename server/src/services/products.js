@@ -38,6 +38,40 @@ async function getProductById(id) {
   })
 }
 
+// Upload-flow dedup lookup. Query the database directly so the staff page
+// never needs to load the catalogue, and include drafts because an existing
+// unfinished product must not be mistaken for a new one.
+async function searchUploadProducts(query) {
+  const term = String(query || '').trim()
+  if (term.length < 2) return []
+
+  const products = await prisma.product.findMany({
+    where: { name: { contains: term, mode: 'insensitive' } },
+    select: {
+      id: true,
+      name: true,
+      brand: true,
+      slug: true,
+      price: true,
+      section: true,
+      status: true,
+      category: { select: { id: true, name: true } },
+      subcategory: { select: { id: true, name: true } },
+      variants: {
+        select: {
+          id: true,
+          colour: true,
+          imageUrl: true,
+          sizes: { select: { id: true, size: true, quantity: true, reservedQuantity: true } },
+        },
+      },
+    },
+    orderBy: { name: 'asc' },
+    take: 10,
+  })
+  return products
+}
+
 async function getCategories({ section } = {}) {
   const where = { status: 'published', categoryId: { not: null } }
   if (section) where.section = section
@@ -324,6 +358,7 @@ module.exports = {
   getProducts,
   getProductBySlug,
   getProductById,
+  searchUploadProducts,
   getCategories,
   getBrands,
   getInventory,

@@ -3,6 +3,7 @@ const {
   getProducts,
   getProductBySlug,
   getProductById,
+  searchUploadProducts,
   getCategories,
   getBrands,
   getInventory,
@@ -39,11 +40,34 @@ const writeLimit = rateLimit({
   key: (req) => req.adminEmail,
 })
 
+// Keystroke-driven usage (product-upload-project.md §9 — search-as-you-type
+// hits the DB directly) needs a much looser cap than a write action, so this
+// is scoped separately from writeLimit rather than reusing its 60/10min.
+const uploadSearchLimit = rateLimit({
+  name: 'products-upload-search',
+  limit: 100,
+  windowMs: 60 * 1000,
+  key: (req) => req.adminEmail,
+})
+
 function sectionError(res) {
   return res.status(400).json({ error: `section must be one of: ${SECTIONS.join(', ')}` })
 }
 
 // --- Read endpoints ---
+
+// Staff-only search used before the upload flow creates or restocks a product.
+// Includes draft products so an unfinished product cannot be duplicated.
+router.get('/admin/upload/products', requireAdminAuth, uploadSearchLimit, async (req, res, next) => {
+  try {
+    const query = typeof req.query.q === 'string' ? req.query.q.trim() : ''
+    if (query.length > 100) return res.status(400).json({ error: 'Search text must be 100 characters or fewer' })
+    res.set('Cache-Control', 'no-store')
+    res.json(await searchUploadProducts(query))
+  } catch (err) {
+    next(err)
+  }
+})
 
 // GET /api/products?section=women&category=Tops
 // `all=1` includes drafts, but only for a signed-in admin.
