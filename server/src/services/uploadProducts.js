@@ -341,4 +341,4 @@ async function restockVariant({ variantId, sizes, adminEmail }) {
   }
 }
 
-module.exports = { createUploadProduct, restockVariant, UploadError }
+module.exports = { createUploadProduct, restockVariant, UploadError, isSupabaseStorageUrl }

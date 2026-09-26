@@ -49,7 +49,7 @@ Storefront (website.com) — reads products/variants/sizes, renders product card
 **Decision:** Start on Gemini's free tier. Used for exactly **three** things — nothing else:
 1. **Product-card image generation** — Mode A only ("Shoot photos"); skipped entirely in Mode B ("Use a card I already have"). One generation call per uploaded photo (1 photo in → 1 card out, 2 photos in → 2 cards out).
 2. **Colour-name suggestion** — from `image[0]`, in either mode.
-3. **Product-name suggestion** — from `image[0]` + the chosen brand, in either mode (e.g. "ZARA Linen Wrap Dress"). Requires a brand to already be selected, since the suggestion is templated as `<brand> <garment description>`.
+3. **Product-name suggestion** — from `image[0]`, in either mode. The `POST /api/admin/upload/suggest` call returns the garment description only (e.g. "Linen Wrap Dress") — no brand, since Gemini never sees or knows the brand. The frontend builds the shown suggestion by prepending the already-chosen brand client-side (`<brand> <garment description>`, e.g. "ZARA Linen Wrap Dress"). Requires a brand to already be selected before the chip is shown, since there's nothing to prepend to otherwise.
 
 All three suggestions are shown as editable/overridable — never auto-committed. Staff can accept, edit, or type their own for any of them.
 
