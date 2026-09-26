@@ -4,8 +4,14 @@
 // untouched by this file.
 const prisma = require('../db')
 const { isValidSection } = require('../constants')
+const { fileTypeFromBuffer } = require('file-type')
 
 const ALLOWED_PROVENANCE = new Set(['ai-generated', 'staff-supplied'])
+// Matches ALLOWED_CONTENT_TYPES in productImageStorage.js — kept as a
+// separate constant here since that map is keyed by content-type string
+// for the sign step, while this is a Set checked against file-type's
+// sniffed `mime` result.
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_IMAGES_PER_COLOUR = 3
 const MAX_COLOURS_PER_REQUEST = 10
 // Free-tier Supabase latency + a multi-colour save doing several sequential
@@ -143,16 +149,70 @@ function validateColour(colour, allowedSizes, seenColourNames) {
   return colourName
 }
 
+// Fetches and magic-byte-sniffs every image URL across every colour, and
+// runs BEFORE the DB transaction opens — not inside it. The signed-upload
+// flow means the server never sees these bytes at upload time (the browser
+// PUTs directly to Supabase Storage), so a client-declared contentType is
+// the only check at that point; this is the real content check, done once
+// the bytes are back in Supabase and about to be committed to a product.
+// Deliberately outside $transaction: with up to MAX_COLOURS_PER_REQUEST
+// colours x MAX_IMAGES_PER_COLOUR images each, sequential or even
+// parallel fetches inside the transaction would risk TRANSACTION_OPTIONS'
+// 20s timeout on free-tier Supabase latency — running the fetches first
+// means that clock doesn't start until every image is already verified.
+async function validateImageContents(colours, fetchFn = fetch) {
+  const urls = new Set()
+  for (const colour of colours ?? []) {
+    for (const img of colour?.images ?? []) {
+      if (typeof img?.url === 'string') urls.add(img.url)
+    }
+  }
+
+  await Promise.all(
+    Array.from(urls).map(async (url) => {
+      // Fast-fail before spending a network call: reject anything that
+      // isn't even a legitimate Supabase Storage URL for our bucket first
+      // (same check validateColour applies later, duplicated here on
+      // purpose so a bogus URL never reaches fetch()).
+      if (!isSupabaseStorageUrl(url)) {
+        throw new UploadError(400, 'Image URL must be https and hosted on our Supabase storage')
+      }
+
+      let response
+      try {
+        response = await fetchFn(url)
+      } catch {
+        throw new UploadError(400, 'Could not verify one of the uploaded images')
+      }
+      if (!response.ok) {
+        throw new UploadError(400, `Could not verify one of the uploaded images (${response.status})`)
+      }
+      const buffer = Buffer.from(await response.arrayBuffer())
+      const detected = await fileTypeFromBuffer(buffer)
+      if (!detected || !ALLOWED_IMAGE_MIME_TYPES.has(detected.mime)) {
+        throw new UploadError(400, 'One of the uploaded images is not a valid image file')
+      }
+    })
+  )
+}
+
 // productId present -> add colours to that existing product (brand/name/
 // subcategory/price come from the existing row; client-sent values for
 // those fields are ignored). productId absent -> create a brand new
 // product with its first colour(s).
-async function createUploadProduct({ productId, brand, name, subcategoryId, price, colours, adminEmail }) {
+async function createUploadProduct({ productId, brand, name, subcategoryId, price, colours, adminEmail, fetchFn = fetch }) {
   if (!Array.isArray(colours) || colours.length === 0) {
     return { ok: false, status: 400, error: 'At least one colour is required' }
   }
   if (colours.length > MAX_COLOURS_PER_REQUEST) {
     return { ok: false, status: 400, error: 'At most 10 colours can be saved at once' }
+  }
+
+  try {
+    await validateImageContents(colours, fetchFn)
+  } catch (err) {
+    if (err instanceof UploadError) return { ok: false, status: err.status, error: err.message }
+    throw err
   }
 
   try {

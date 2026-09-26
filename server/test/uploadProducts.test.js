@@ -19,6 +19,24 @@ process.env.PRODUCT_IMAGES_BUCKET = 'product-images'
 
 const GOOD_IMAGE_URL = 'https://project-ref.supabase.co/storage/v1/object/public/product-images/card/2026/09/img1.jpg'
 
+// The smallest-possible valid 1x1 transparent PNG, byte-exact via base64
+// decode (not typed out by hand) — verified separately with
+// fileTypeFromBuffer to actually sniff as image/png before use here.
+// Header bytes: 89 50 4E 47 0D 0A 1A 0A, the real PNG signature.
+const VALID_PNG_BUFFER = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64'
+)
+
+// validateImageContents' injected fetchFn — stands in for the real fetch
+// to a Supabase Storage URL, returning bytes that sniff as a valid image
+// so the new content-check step doesn't block tests that were never about
+// image-content rejection in the first place.
+const fakeImageFetch = async () => ({
+  ok: true,
+  arrayBuffer: async () => VALID_PNG_BUFFER,
+})
+
 // ---------------------------------------------------------------------------
 // Fake Prisma client with snapshot/rollback $transaction
 // ---------------------------------------------------------------------------
@@ -225,6 +243,7 @@ function goodInput(overrides = {}) {
     price: 32500,
     colours: [goodColour()],
     adminEmail: 'staff@genvio.test',
+    fetchFn: fakeImageFetch,
     ...overrides,
   }
 }
@@ -408,6 +427,7 @@ test('adding a colour that already exists on the product (case-insensitive) is r
     productId: 'prod-1',
     colours: [goodColour({ colourName: 'burgundy' })], // same name, different case
     adminEmail: 'staff@genvio.test',
+    fetchFn: fakeImageFetch,
   })
 
   assert.equal(result.ok, false)
@@ -436,6 +456,7 @@ test('client-sent brand/name/price/subcategoryId are ignored when adding a colou
     subcategoryId: 'some-other-subcategory',
     colours: [goodColour({ colourName: 'Black' })],
     adminEmail: 'staff@genvio.test',
+    fetchFn: fakeImageFetch,
   })
 
   assert.equal(result.ok, true)
@@ -660,6 +681,7 @@ test('the women-only guard also applies when adding a colour to an existing non-
     productId: 'prod-men-1',
     colours: [goodColour({ colourName: 'Navy', sizes: [{ size: 'M', quantity: 2 }] })],
     adminEmail: 'staff@genvio.test',
+    fetchFn: fakeImageFetch,
   })
 
   assert.equal(result.ok, false)
