@@ -159,19 +159,19 @@ Subcategory (subcategories) / Category (categories) / SizeRange (size_ranges)
 
 **Write paths today:** `createProduct` accepts `{ slug, name, brand, categoryId, price, section }`; `updateProduct` accepts `{ name, brand, price, section, categoryId, status, variants }`. **Neither accepts `subcategoryId`** — this is the blocker already flagged in §11.
 
-### 5b. Proposed changes — NOT approved, NOT applied
+### 5b. Proposed changes — schema changes require owner approval before any migration is applied
 
-Nothing below has an owner sign-off. **Each of these is a schema change under `AGENT_RULES.md` and requires explicit owner approval before any migration is written** — no Prisma command runs off the back of this document alone.
+**Each of these is a schema change under `AGENT_RULES.md`.** A migration may be *drafted* for review, but nothing here is applied until the owner gives explicit typed approval to run it.
 
 **1. Brand — string column, or a `Brand` table?**
 - *Keep `Product.brand` as a string* (no new table): zero migration, keeps `getBrands`'s existing distinct-query approach working as-is. Downside: the Step 2 "add a brand not yet in the list" action just becomes a new string value with no referential integrity — nothing stops two brands differing only by case/whitespace from both persisting if the dedup-on-read logic in `getBrands` is ever bypassed.
 - *Add a `Brand` table with `Product.brandId`*: gives real referential integrity and an admin-manageable brand list independent of what happens to be published right now (today's `getBrands` only sees `status: 'published'` products, so an unpublished product's brand doesn't show up). Downside: a real migration, a backfill of existing `products.brand` values into rows, and a rewrite of `getBrands`, `createProduct`, and `updateProduct`.
-- Not decided here — flagging both options for the owner.
+- **Decided 2026-09-26: keep as text, normalise on save.** No `Brand` table, no schema change. On save, the brand string is trimmed, internal whitespace collapsed, and matched against existing brands case-insensitively — reusing the existing brand's exact spelling when found. This is application code (Step 2's brand field / the `createProduct`/`updateProduct` write path), not a migration.
 
 **2. Multiple ordered images per colour, with provenance — extend `ProductImage`, or add a new table?**
 - *Extend `ProductImage`*: add a nullable `variantId` (so it can point at a variant instead of, or in addition to, a product) plus a `provenance` column. Reuses an existing model and its `sortOrder` column. Downside: `ProductImage` is currently product-scoped everywhere it's read (storefront gallery, admin product editor); overloading it to also mean "per-variant" needs every existing read site checked so a null/wrong `variantId` doesn't silently show the wrong images.
 - *Add a new `variant_images` table* (`id, variantId, url, sortOrder, provenance`): keeps `ProductImage` untouched and its existing behavior guaranteed unaffected. Downside: a second, near-identical image table with its own queries, and a decision needed on whether `ProductVariant.imageUrl` (today's single card-image column) is kept as a denormalized "sortOrder 0" convenience or dropped in favor of always reading from the new table.
-- Either option needs `provenance: 'ai-generated' | 'staff-supplied'`, since Step 1's Mode A and Mode B can now produce images for the same product's colour history. Not decided here — flagging both options for the owner.
+- **Decided 2026-09-26: new `variant_images` table.** `ProductImage` is left untouched — existing products keep reading `ProductVariant.imageUrl` as-is; no backfill. Migration `server/prisma/migrations/20260926140000_add_variant_images/` applied 2026-09-26 (see that folder and the matching `VariantImage` model in `schema.prisma`).
 - `raw_front_url` / `raw_back_url` need no schema change — both are already nullable on `ProductVariant` today, which already covers Mode B leaving them `null`.
 
 **3. `subcategoryId` on `createProduct` / `updateProduct`** — the write functions need this field accepted and persisted; this is application-code work, not a schema change (the `subcategory_id` column already exists on `Product`), but it's listed here because Step 2 cannot function end-to-end without it. See §11 known blockers.
@@ -180,7 +180,7 @@ Nothing below has an owner sign-off. **Each of these is a schema change under `A
 
 ## 6. What gets written on Approve
 
-| Scenario | `products` | `product_variants` | images (§5b, table TBD) | `variant_sizes` |
+| Scenario | `products` | `product_variants` | `variant_images` (§5b) | `variant_sizes` |
 |---|---|---|---|---|
 | Brand new product, first colour | INSERT (1 row) | INSERT (1 row) | INSERT (per image) | INSERT (per size, `quantity`) |
 | New colour on an existing product | no write | INSERT (1 row) | INSERT (per image) | INSERT (per size, `quantity`) |

@@ -150,10 +150,36 @@ model ProductVariant {
   rawBackUrl  String? @map("raw_back_url")
   createdBy   String? @map("created_by")
 
-  product Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
   sizes   VariantSize[]
+  images  VariantImage[]
 
   @@map("product_variants")
+}
+
+// Ordered images per colour (product card + gallery), with provenance —
+// added alongside ProductVariant rather than folded into ProductImage,
+// which stays product-scoped and untouched. See
+// product-upload-project.md §4 Step 1 / §5b for why: Mode A can produce
+// more than one generated image per photo set and Mode B can supply up
+// to 3, and the two need to be distinguishable later. sortOrder 0 is the
+// product card shown in the catalogue grid; >0 are gallery images, in
+// order. Migration applied 2026-09-26:
+// server/prisma/migrations/20260926140000_add_variant_images.
+model VariantImage {
+  id         String   @id @default(cuid())
+  variantId  String   @map("variant_id")
+  url        String
+  sortOrder  Int      @default(0) @map("sort_order")
+  provenance String
+  createdBy  String?  @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, sortOrder])
+  @@index([variantId])
+  @@map("variant_images")
 }
 
 model VariantSize {
