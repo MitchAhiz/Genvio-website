@@ -102,6 +102,17 @@ export const updateConfig = (data) => patch('/api/config', data)
 export const getActivityLog = (page, search) => get('/api/activity', { page, search })
 export const getConfigHistory = (keys, limit) => get('/api/config/history', { keys: keys?.join(','), limit })
 
+// --- Upload flow (staff /upload page) ---
+// searchUploadProducts is already defined above under Products.
+
+export const getUploadCapabilities = () => get('/api/admin/upload/capabilities')
+export const signUpload = (kind, contentType) => post('/api/admin/upload/sign', { kind, contentType })
+export const generateCard = (sourceUrl, view, frontCardUrl) =>
+  post('/api/admin/upload/generate-card', { sourceUrl, view, frontCardUrl })
+export const suggestUploadField = (imageUrl) => post('/api/admin/upload/suggest', { imageUrl })
+export const createUploadProduct = (data) => post('/api/admin/upload/products', data)
+export const restockUploadColour = (variantId, sizes) => post('/api/admin/upload/restock', { variantId, sizes })
+
 // --- Session & Auth ---
 // Reuses the same endpoints the OTP login flow already calls
 // (server/src/routes/auth.js) — no new auth backend added here.
