@@ -56,6 +56,17 @@ function isQuotaError(err) {
   return /RESOURCE_EXHAUSTED|quota/i.test(err?.message || '')
 }
 
+// A 429 whose quota violation reports "limit: 0" means this project's
+// tier permits ZERO requests for that model — not a real, temporary
+// rate/quota problem that a retry could fix (confirmed live: both
+// gemini-2.5-flash-image and gemini-3.1-flash-image return exactly this
+// on the free tier). Callers should treat this as "the feature isn't
+// switched on" (503 AI_CARDS_DISABLED), never the friendly "try again
+// shortly" 429 — retrying a hard 0 limit only wastes the request.
+function isZeroLimitQuotaError(err) {
+  return isQuotaError(err) && /\blimit:\s*0\b/i.test(err?.message || '')
+}
+
 // view: 'front' | 'back' — picks the loaded prompt (card-front-women.txt
 // / card-back-women.txt). images: an ORDERED array of { buffer, mimeType }
 // — for 'front' this is [sourcePhoto]; for 'back' this is
@@ -127,5 +138,6 @@ module.exports = {
   generateProductCardImage,
   suggestColourAndDescription,
   isQuotaError,
+  isZeroLimitQuotaError,
   TEXT_MODEL,
 }

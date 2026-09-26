@@ -5,11 +5,21 @@ const { requireCsrf } = require('../middleware/csrf')
 const { rateLimit } = require('../middleware/rateLimit')
 const { createUploadProduct, restockVariant, isSupabaseStorageUrl } = require('../services/uploadProducts')
 const { signProductImageUpload, uploadImageBuffer, ALLOWED_CONTENT_TYPES } = require('../services/productImageStorage')
-const { generateProductCardImage, suggestColourAndDescription, isQuotaError } = require('../services/gemini')
+const { generateProductCardImage, suggestColourAndDescription, isQuotaError, isZeroLimitQuotaError } = require('../services/gemini')
 
 const router = Router()
 
 const QUOTA_MESSAGE = 'Image generation is temporarily unavailable, try again shortly'
+
+// Shared between the feature-flag gate below and the limit:0 error
+// mapping (§ "Error mapping") — both mean the same thing to staff:
+// card generation isn't switched on for this deployment right now.
+const AI_CARDS_DISABLED_CODE = 'AI_CARDS_DISABLED'
+const AI_CARDS_DISABLED_MESSAGE = "AI card generation isn't switched on. Use 'Use a card I already have' instead."
+
+function aiCardGenerationEnabled() {
+  return process.env.AI_CARD_GENERATION_ENABLED === 'true'
+}
 
 // Every Gemini route follows the same "no key configured" gate (rule 1)
 // and the same friendly quota message (rule 4, product-upload-project.md
@@ -17,6 +27,19 @@ const QUOTA_MESSAGE = 'Image generation is temporarily unavailable, try again sh
 function requireGeminiConfigured(req, res, next) {
   if (!process.env.GEMINI_API_KEY) {
     return res.status(503).json({ error: "AI features aren't set up yet" })
+  }
+  next()
+}
+
+// Card generation has its own on/off switch, independent of whether a
+// Gemini key is configured — suggestions can be live while cards stay
+// off (e.g. no billing yet: free tier is a hard 0-request limit for the
+// image models, not a soft quota — see isZeroLimitQuotaError). Checked
+// before requireGeminiConfigured on generate-card, so a disabled feature
+// never even asks whether the key exists.
+function requireAiCardGenerationEnabled(req, res, next) {
+  if (!aiCardGenerationEnabled()) {
+    return res.status(503).json({ error: AI_CARDS_DISABLED_MESSAGE, code: AI_CARDS_DISABLED_CODE })
   }
   next()
 }
@@ -123,6 +146,7 @@ router.post(
   requireAdminAuth,
   requireCsrf,
   generateCardLimit,
+  requireAiCardGenerationEnabled,
   requireGeminiConfigured,
   async (req, res, next) => {
     try {
@@ -158,11 +182,30 @@ router.post(
       const url = await uploadImageBuffer(path, generated.data, generated.mimeType)
       res.json({ url, provenance: 'ai-generated' })
     } catch (err) {
+      // A limit:0 quota error means this project's tier permits zero
+      // requests for the model — the feature is effectively off, not
+      // temporarily throttled. Check this BEFORE the generic quota
+      // check, since it's the more specific classification.
+      if (isZeroLimitQuotaError(err)) {
+        return res.status(503).json({ error: AI_CARDS_DISABLED_MESSAGE, code: AI_CARDS_DISABLED_CODE })
+      }
       if (isQuotaError(err)) return res.status(429).json({ error: QUOTA_MESSAGE })
       next(err)
     }
   }
 )
+
+// Reports which AI features are actually usable right now, so the
+// frontend can decide whether to even show the "Shoot photos ->
+// Generate" mode (Mode A) — aiCards reflects the feature flag, not
+// whether Gemini would ultimately succeed; aiSuggestions reflects
+// whether a key is configured at all. Neither call reaches Gemini.
+router.get('/admin/upload/capabilities', requireAdminAuth, (req, res) => {
+  res.json({
+    aiCards: aiCardGenerationEnabled(),
+    aiSuggestions: Boolean(process.env.GEMINI_API_KEY),
+  })
+})
 
 // Suggests a colour name and a garment-only description (no brand — the
 // frontend builds the product name as `${brand} ${garmentDescription}`,

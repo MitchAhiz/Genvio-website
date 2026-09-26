@@ -16,12 +16,16 @@ const PROMPTS_DIR = path.join(__dirname, 'prompts')
 // for "what generates a card and how": model name, the portrait aspect
 // ratio closest to the 4:5 ecommerce standard that generateContent's
 // ImageConfig.aspectRatio actually documents support for (1:1, 2:3, 3:2,
-// 3:4, 4:3, 9:16, 16:9, 21:9 — see @google/genai's dist/genai.d.ts;
-// 4:3 = 0.75 is closer to 4:5 = 0.8 than any other listed value, 2:3 =
-// 0.667 being the next-nearest), and the output format.
+// 3:4, 4:3, 9:16, 16:9, 21:9 — see @google/genai's dist/genai.d.ts),
+// and the output format.
+//
+// aspectRatio format is width:height, so 4:3 is LANDSCAPE (1.33) — a
+// mistake caught after the first commit. The closest PORTRAIT value to
+// the 4:5 (0.8) ecommerce standard is 3:4 (0.75); 2:3 (0.667) is the
+// next-nearest and further off.
 const CARD_GENERATION_CONFIG = {
   model: 'gemini-2.5-flash-image',
-  aspectRatio: '4:3',
+  aspectRatio: '3:4',
   outputMimeType: 'image/png',
 }
 

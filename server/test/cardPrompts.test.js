@@ -54,3 +54,9 @@ test('CARD_GENERATION_CONFIG pins model, aspectRatio and outputMimeType', () => 
   assert.equal(typeof CARD_GENERATION_CONFIG.aspectRatio, 'string')
   assert.equal(typeof CARD_GENERATION_CONFIG.outputMimeType, 'string')
 })
+
+test('the configured aspect ratio is portrait (height > width) — width:height format', () => {
+  const [width, height] = CARD_GENERATION_CONFIG.aspectRatio.split(':').map(Number)
+  assert.ok(Number.isFinite(width) && Number.isFinite(height), `unparseable aspect ratio: ${CARD_GENERATION_CONFIG.aspectRatio}`)
+  assert.ok(height > width, `aspectRatio "${CARD_GENERATION_CONFIG.aspectRatio}" is not portrait (width:height, height must exceed width)`)
+})

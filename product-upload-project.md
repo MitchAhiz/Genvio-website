@@ -57,11 +57,17 @@ Storefront (website.com) — reads products/variants/sizes, renders product card
 
 All three suggestions are shown as editable/overridable — never auto-committed. Staff can accept, edit, or type their own for any of them.
 
+**Image generation needs a BILLED Google Cloud project — confirmed live, not assumed:** a real call to both `gemini-2.5-flash-image` and `gemini-3.1-flash-image` returned `RESOURCE_EXHAUSTED` with the quota violation reporting **`limit: 0`** for `generate_content_free_tier_requests` — the free tier permits *zero* image-generation requests for these models, on both the daily and per-minute metrics. That is a hard tier limit, not a soft/temporary quota that a retry or a wait fixes.
+
+**Launch decision:** ship with `AI_CARD_GENERATION_ENABLED=false` (server/.env — defaults to `false` if unset). Card generation is switched off; **Mode B ("Use a card I already have") is the only way to add product-card images at launch.** Text suggestions (colour name, product name) are unaffected and stay on, since the text models are not limit-0 on the free tier. `GET /api/admin/upload/capabilities` reports `{ aiCards, aiSuggestions }` so the frontend can hide Mode A entirely while `aiCards` is `false`.
+
+**To enable card generation later:** add billing to the Google Cloud project backing `GEMINI_API_KEY`, set `AI_CARD_GENERATION_ENABLED=true`, restart the server. No code change needed.
+
 **Known trade-offs of starting free, accepted for now:**
 - Free-tier prompts/images may be used by Google to improve their models. Acceptable short-term; revisit before this handles sensitive or high-volume data.
-- Daily/per-minute quotas on the free tier are not fixed — Google adjusts them without notice and doesn't publish one universal number. Check the live quota in Google AI Studio for the actual current cap, don't trust a number quoted anywhere else, including earlier chats about this project.
-- If daily quota is hit mid-use, uploads should fail gracefully (clear message to staff: "Image generation is temporarily unavailable, try again shortly") — not silently break the form or lose staff's uploaded photos.
-- Moving to paid later is a small, contained change (swap the API call's billing context) — not a rebuild. Rough cost when that happens: ~$0.003/image, i.e. a few cents even at high volume.
+- Daily/per-minute quotas on the free tier are not fixed — Google adjusts them without notice and doesn't publish one universal number, and (per the confirmed-live result above) can be a hard 0 for a given model/tier rather than a soft cap. Check the live quota in Google AI Studio for the actual current state, don't trust a number quoted anywhere else, including earlier chats about this project.
+- If a *real* temporary quota/rate error is hit mid-use (as opposed to the limit:0 case above, which maps to "feature not enabled" instead), uploads should fail gracefully (clear message to staff: "Image generation is temporarily unavailable, try again shortly") — not silently break the form or lose staff's uploaded photos.
+- Moving to paid later is a small, contained change (enable billing, flip the flag) — not a rebuild. **Image-generation pricing is not fixed here** — check Google's current Gemini API pricing page for the live per-image rate before enabling billing; a stale figure quoted in an old chat or doc is not something to plan a budget around.
 
 **Not in scope for Gemini or any AI:** brand, category, sub-category, price, size ranges. All of that is manual, staff-entered, or pulled from the website's own admin config — never AI-generated.
 
