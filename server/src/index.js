@@ -15,6 +15,7 @@ const sizeRangeRoutes = require('./routes/sizeRanges')
 const activityRoutes = require('./routes/activity')
 const analyticsRoutes = require('./routes/analytics')
 const receiptRoutes = require('./routes/receipts')
+const uploadRoutes = require('./routes/upload')
 const { releaseExpiredReservations, expireStalePendingPayment } = require('./services/reservations')
 
 const app = express()
@@ -49,6 +50,7 @@ app.use('/api', sizeRangeRoutes)
 app.use('/api', activityRoutes)
 app.use('/api', analyticsRoutes)
 app.use('/api', receiptRoutes)
+app.use('/api', uploadRoutes)
 
 app.use((err, _req, res, _next) => {
   console.error(err.stack)
