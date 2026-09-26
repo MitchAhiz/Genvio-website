@@ -24,6 +24,7 @@ export function del(path, body) {
 // --- Products ---
 
 export const getAdminProducts = (params) => get('/api/products', { ...params, all: '1' })
+export const searchUploadProducts = (q) => get('/api/admin/upload/products', { q })
 export const createProduct = (data) => post('/api/products', data)
 export const updateProduct = (id, data) => patch(`/api/products/${id}`, data)
 export const deleteProduct = (id) => del(`/api/products/${id}`)
