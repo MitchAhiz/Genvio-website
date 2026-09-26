@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getAdminCategories, createUploadProduct, restockUploadColour } from '../api/admin'
 import { apiFetch } from '../api/client'
 import { useUploadCapabilities } from '../hooks/useUploadCapabilities'
+import { useNoIndex } from '../hooks/useNoIndex'
 import RestockBar from '../components/upload/RestockBar'
 import PhotoStep from '../components/upload/PhotoStep'
 import DetailsStep from '../components/upload/DetailsStep'
@@ -41,6 +42,7 @@ function StepRail({ step, colourCount }) {
 }
 
 export default function UploadPage() {
+  useNoIndex()
   const authed = useAuthGate()
   const { capabilities, error: capError } = useUploadCapabilities()
 

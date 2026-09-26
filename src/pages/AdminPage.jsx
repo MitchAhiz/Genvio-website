@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import AdminLayout from './admin/AdminLayout'
+import { useNoIndex } from '../hooks/useNoIndex'
 
 // `??` (not `||`) — see the same note in src/api/client.js.
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
@@ -85,6 +86,7 @@ function LoginForm({ onLogin }) {
 // router-based shell, and Tasks 07-11 fill in each tab's real content.
 
 export default function AdminPage() {
+  useNoIndex()
   const [authed, setAuthed] = useState(null)
 
   useEffect(() => {
