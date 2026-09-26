@@ -8,14 +8,20 @@
 // invoked, so nothing here needs its own "key missing" branch.
 const { GoogleGenAI, ApiError, Type } = require('@google/genai')
 
-// "Nano banana" — Gemini's current generateContent-based image model.
+// "Nano Banana" — Gemini's current generateContent-based image model.
 // Chosen over the gemini-3-pro-image-preview tier: preview models can be
 // pulled or restricted without notice, and this endpoint needs to stay
 // working on whatever tier the project's key has, not the newest preview.
+// Confirmed live (read-only models.get, not an actual generation) that
+// this key can reach it: listed, generateContent is a supported action,
+// no billing-gate error like the ones the deprecated text models gave.
 const IMAGE_MODEL = 'gemini-2.5-flash-image'
-// Stable text model with reliable JSON (responseSchema) mode — used for
-// the colour/name suggestion call.
-const TEXT_MODEL = 'gemini-2.5-flash'
+// Text model with reliable JSON (responseSchema) mode, used for the
+// colour/name suggestion call. gemini-2.5-flash is no longer available to
+// this key (confirmed via a live call, which 404s with "no longer
+// available to new users" and points at this model) — verified working
+// live before committing.
+const TEXT_MODEL = 'gemini-3.8-flash'
 
 // Lives server-side only — never exposed to staff, never editable through
 // the UI. See product-upload-project.md §7. Used only in Mode A, once per
