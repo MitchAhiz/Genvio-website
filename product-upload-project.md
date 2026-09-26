@@ -1,7 +1,7 @@
 # Product Upload — Project Spec
 **Project:** Mary Website / Genvio
-**Status:** Ready to start building
-**Interface:** Website form at `website.com/upload` — staff-only, behind login. (Originally scoped as a Telegram bot; moved to a web form because Telegram has no real form UI — no dropdowns, no multi-field grids — and everything we needed kept fighting that constraint. Live camera capture, the reason Telegram was attractive, works fine in a mobile browser via `capture="environment"`, so nothing was actually lost in the move.)
+**Status:** Approved flow below — ready to build
+**Interface:** Website form at `website.com/upload` — staff-only, behind login, **one page, no wizard navigation**. (Originally scoped as a Telegram bot; moved to a web form because Telegram has no real form UI — no dropdowns, no multi-field grids — and everything we needed kept fighting that constraint. Live camera capture, the reason Telegram was attractive, works fine in a mobile browser via `capture="environment"`, so nothing was actually lost in the move.)
 
 **Non-negotiable:** All schema-changing DB work on this feature falls under `AGENT_RULES.md` at the project root. No Prisma migration commands without explicit typed approval from the owner — every time, no exceptions. This applies to every new table below (`product_variants`, `variant_sizes`, and anything else this feature needs).
 
@@ -9,7 +9,7 @@
 
 ## 1. Goal
 
-Let staff create and restock products from one page: search first to avoid duplicates, photograph the item (one photo is enough, a second is optional), get an AI-generated product-card image and an AI-suggested color name (both editable/overridable), fill in category/sub-category/price manually (once per product, not per color), enter stock per size, and publish — with every step validated so bad data can't reach a database that has no backups.
+Let staff create and restock products from one page: photograph the item (or supply an existing card image), get an AI-generated product-card image per photo plus AI-suggested name/color (all editable/overridable), fill in brand/name/category/sub-category/price manually (once per product, not per color), enter stock per size, and publish — with every step validated so bad data can't reach a database that has no backups.
 
 ---
 
@@ -17,16 +17,17 @@ Let staff create and restock products from one page: search first to avoid dupli
 
 ```
 Website Admin (source of truth)
-  ├─ Categories / Sub-categories
-  └─ Size ranges per category + sub-category
+  ├─ Brands / Categories / Sub-categories
+  └─ Size ranges per sub-category
          │
          ▼  (read-only internal API — not hardcoded in the upload form)
-Upload Form  —  website.com/upload  (staff-only, behind login)
-  ├─ Search/match against `products` (dedup happens before any write)
+Upload Form  —  website.com/upload  (staff-only, behind login, single page)
+  ├─ Step 1: Photos → product card (Shoot photos, or Use a card I already have)
+  ├─ Step 2: Brand → name/colour suggestions (Gemini) → category/sub-category/price
+  │     └─ Background dedup check against `products` (after brand+name are set,
+  │        not before — see §4)
   ├─ Fetches sub-categories + size ranges live from the admin API
-  ├─ Calls Gemini → generates product-card image (hardcoded prompt, see §5)
-  ├─ Calls Gemini → suggests a color name from the photo (staff can override)
-  ├─ Uploads photos + generated image to Supabase Storage
+  ├─ Uploads raw photos + generated/supplied images to Supabase Storage
   └─ On approve → writes to `products` / `product_variants` / `variant_sizes`
          │
          ▼
@@ -38,15 +39,19 @@ Storefront (website.com) — reads products/variants/sizes, renders product card
 
 **Working demo (built during design, not the real build):**
 - Chat-style prototype (superseded): tested the conversation logic
-- One-page web form prototype: `https://claude.ai/artifact/LxweWFNPhM39GZekPx8wpE` — reflects the current flow below and is the reference for what the real build should feel like. No real Gemini/Supabase calls — UI and logic only.
+- Search-first one-page form prototype (superseded): the earlier "search before anything has a name" design — replaced by this doc's flow
+- Current clickable prototype (approved): `https://claude.ai/artifact/GvyUXW4QpnLeRBnYzeeeZh` — reflects the flow in §4 below — Photos → Card → Details (brand/name/colour/category/price) → Stock → Review, with the background dedup warning replacing the old up-front search step. Includes the Mode A/Mode B toggle and the stock-input focus behaviour (clear-on-focus-if-zero, select-all-on-focus-if-populated, revert-to-zero-on-blur-if-empty). UI/logic only — no real Gemini or Supabase calls.
 
 ---
 
 ## 3. AI provider: Gemini, free tier for now
 
-**Decision:** Start on Gemini's free tier. Used for exactly two things — nothing else:
-1. Generating the product-card image from the uploaded photo(s)
-2. Suggesting a color name from the photo
+**Decision:** Start on Gemini's free tier. Used for exactly **three** things — nothing else:
+1. **Product-card image generation** — Mode A only ("Shoot photos"); skipped entirely in Mode B ("Use a card I already have"). One generation call per uploaded photo (1 photo in → 1 card out, 2 photos in → 2 cards out).
+2. **Colour-name suggestion** — from `image[0]`, in either mode.
+3. **Product-name suggestion** — from `image[0]` + the chosen brand, in either mode (e.g. "ZARA Linen Wrap Dress"). Requires a brand to already be selected, since the suggestion is templated as `<brand> <garment description>`.
+
+All three suggestions are shown as editable/overridable — never auto-committed. Staff can accept, edit, or type their own for any of them.
 
 **Known trade-offs of starting free, accepted for now:**
 - Free-tier prompts/images may be used by Google to improve their models. Acceptable short-term; revisit before this handles sensitive or high-volume data.
@@ -54,86 +59,140 @@ Storefront (website.com) — reads products/variants/sizes, renders product card
 - If daily quota is hit mid-use, uploads should fail gracefully (clear message to staff: "Image generation is temporarily unavailable, try again shortly") — not silently break the form or lose staff's uploaded photos.
 - Moving to paid later is a small, contained change (swap the API call's billing context) — not a rebuild. Rough cost when that happens: ~$0.003/image, i.e. a few cents even at high volume.
 
-**Not in scope for Gemini or any AI:** category, sub-category, price, size ranges, product name. All of that is manual, staff-entered, or pulled from the website's own admin config — never AI-generated.
+**Not in scope for Gemini or any AI:** brand, category, sub-category, price, size ranges. All of that is manual, staff-entered, or pulled from the website's own admin config — never AI-generated.
 
 ---
 
-## 4. Full Flow (single page, no navigation between steps)
+## 4. Full Flow (single page, no wizard navigation)
 
-Everything below happens on one continuously scrolling page. Sections reveal in place as staff progresses; nothing is torn down or replaced — staff can scroll back up and still see earlier choices.
+Everything below happens on one page. Sections reveal in place as staff progresses.
 
-### Step 1 — Search (always first, for every session)
-- Staff types a product name into a live search box.
-- Search matches against `products.name` (fuzzy/partial — e.g. Postgres `pg_trgm` for typo tolerance).
-- Matches shown as clickable results; always includes a "None of these — new product" option.
-- No match at all → explicit "confirm this is a brand new product" step, never assumed.
-- **This step is what prevents duplicate product rows** — it runs before anything else, every time, whether staff is creating something new or restocking.
+### Step 1 — Photos & product card
 
-### Step 2 — Product details (new products only, asked exactly once)
-- If new: Category (Men / Women / Kids) → Sub-category (dropdown, values fetched live from the website admin — never hardcoded) → Price.
-- Confirmed once, then **locked** — never re-asked for this product, including when staff adds more colors later in the same or a future session.
-- If existing product matched in Step 1: this step is skipped entirely; fields already exist on the row.
+Staff picks a mode at the top of the step:
 
-### Step 3 — Color (repeatable — one block per color, all on the same page)
-For an **existing product**, staff sees:
-- A list of existing colors, each clickable to restock it directly (skips photo capture — goes straight to Step 5)
-- A "+ Add new color" option, which goes through the full photo→image→name sequence below
+**Mode A — "Shoot photos"**
+- Front photo required, back photo optional. Both use `capture="environment"` so mobile opens the camera directly, not a gallery picker.
+- Raw photos upload to Supabase Storage via a short-lived signed URL (same pattern as `receipts.js`), persisted as the variant's `raw_front_url` / `raw_back_url`.
+- "Generate product cards" runs **one Gemini image generation per uploaded photo** — 1 photo in → 1 card out, 2 photos in → 2 cards out. Cards are shown side by side, each with its own **Regenerate**, plus a **Regenerate all**.
+- `images[0]` (generated from the front photo) becomes **the** product card shown in the catalogue grid. Any further generated image is a gallery image shown when a customer opens the product, in the order produced.
+- Nothing proceeds to Step 2 until cards are approved.
 
-For a **new product** (or a new color on an existing one):
-1. **Photo capture** — front photo, back photo **optional**. At least one required. Both use the device's live camera on mobile (`capture="environment"`), not just a gallery picker.
-2. **AI card image generated** from whichever photo(s) were provided → shown with **Approve / Regenerate** buttons. Regenerate re-runs generation on the same photos, no retake needed.
-3. **AI color-name suggestion** shown as a clickable box — tapping it uses that name directly. A separate text field lets staff type their own instead. Neither is forced; either path is one action.
+**Mode B — "Use a card I already have"**
+- For when staff already has a finished product-card image (a brand catalogue photo, an earlier shoot). Up to 3 plain file upload slots — first slot is the product card (required), the rest are optional gallery images.
+- No camera constraint, no Gemini image generation, no regenerate loop — images are used exactly as supplied.
+- Gemini still reads `images[0]` afterward to produce the name and colour suggestions in Step 2, same as Mode A.
+- Since there's no raw camera photo in this mode, `raw_front_url` / `raw_back_url` stay `null` for that colour.
+- **Provenance is tracked per image** (`ai-generated` vs `staff-supplied`) so it's visible later which cards were generated vs supplied — stored on the variant/image record (see §5).
 
-Staff can add as many color blocks as needed in one sitting — each new block appends below the previous one, on the same page.
+The details form in Step 2 does **not** appear until images are approved/confirmed in either mode.
 
-### Step 4 — Stock per size (per color block)
-- Size range for the grid is **fetched live from the website admin**, keyed by this product's category + sub-category — never a hardcoded list. If no range is configured yet for that combination, the form stops and tells staff to configure it in admin first, rather than guessing.
-- Staff enters units **received** per size — this **adds** to existing stock, it does not replace/overwrite it. A visible before → after line is shown per size before confirming (protects against staff miscounting or forgetting reserved/in-cart stock).
-- Confirmed stock write is an **atomic DB increment** (`stock_count = stock_count + $n`), not a read-then-write in application code — this prevents two simultaneous restocks, or a restock overlapping a live sale, from silently overwriting each other.
+### Step 2 — Product details (only after Step 1 is done)
 
-### Step 5 — Review & submit
-- Shows the product's shared fields (or "existing product — unchanged" if matched) and every color block completed this session, with its image and final stock breakdown.
-- **Approve** → commits all writes (see §6 for exactly what gets written).
-- **Discard** → nothing is written; any uploaded originals for this session should be cleaned up from Storage, not left orphaned.
+Field order is deliberate:
+
+a. **Brand** — a searchable dropdown over the existing brand list, filtering as you type, with an option to add a brand not yet in the list.
+b. **Product name** — Gemini suggests `<brand> <garment description from photo>` once a brand is chosen. Shown as a tappable suggestion chip above an editable text field. The chip is disabled/greyed until a brand is picked. Staff can accept it, edit it, or type their own — never auto-committed.
+c. **Colour name** — Gemini suggests one from the photo, same chip pattern, same editability.
+d. **Category → Sub-category** (dependent dropdown) **→ Price**.
+
+**Dedup, replacing the old up-front search step:** there is no search step at the *front* of the flow — staff cannot search by product name before the product has a name; that was the flaw in the superseded design. Instead, once brand + name are set, the existing `GET /api/admin/upload/products?q=` endpoint is called in the background (debounced) and, if it finds a likely match, an inline warning appears under the name field showing the matching product(s) with a button: **"Add my colour to this product instead."** Choosing that locks brand/name/category/price to the existing product.
+
+Saving a colour locks brand/name/category/price for the **whole product**. "+ Add another colour" returns to Step 1 (either mode) with those fields still locked — only new photos/card and a new colour name are needed.
+
+### Step 3 — Stock per size
+
+- Sizes come from the `SizeRange` configured for the chosen category + sub-category pair (`SizeRange` is keyed by both together, not sub-category alone — see §5a).
+- Per colour, per size: show current quantity, an input for units received, and a live "before → after" readout.
+- The number input **clears on focus** if it's showing the default 0 (rather than making staff delete a leading zero), **selects-all on focus** if it already has a value, and **reverts to 0 on blur** if left empty.
+- Writes are **atomic increments**, never absolute overwrites (`quantity = quantity + $n`, on `variant_sizes`).
+
+### Step 4 — Review & submit
+
+- Shows brand, product name, category/sub-category, price, and — per colour — the image strip (product card first, provenance noted) plus the stock deltas for this session.
+- **Approve & publish**, or **Discard**.
+- The whole submit is wrapped in a **single transaction** — a partial failure must not leave orphaned products, variants, or images. This is the §11 risk, still a must-fix.
+
+### Separate entry point — Restock
+
+A collapsed bar above the form: **"Just adding more of something you already stock? → Find it to restock."** Expands to a search over existing products by name or brand.
+- Picking an existing colour jumps **straight to Step 3** (stock) — no photos, no Gemini, nothing else.
+- Picking **"+ new colour for this"** goes to Step 1 with the product fields pre-locked.
+
+This is a **side door, not a gate** — it must never stand between staff and the camera. (This is the structural fix for the flaw in the superseded design, where search sat in front of everything.)
 
 ---
 
 ## 5. Data Model
 
+### 5a. Current schema (as it exists today — `server/prisma/schema.prisma`)
+
 ```
-products
-  id, name, category, subcategory, price
+Product (products)
+  id, slug, name, brand (String — free text, no Brand table), price,
+  section, status, categoryId (category_id, nullable),
+  subcategoryId (subcategory_id, nullable), createdBy, createdAt
 
-product_variants
-  id, product_id, color_name, image_url (AI-generated, used on the storefront card),
-  raw_front_url, raw_back_url (real photos — used in the product detail gallery, per
-  the decision that customers should see the actual item, not just the AI rendering)
+ProductImage (product_images)
+  id, productId, url, sortOrder
+  -- scoped to the PRODUCT, not to a variant/colour. No provenance column.
 
-variant_sizes
-  id, variant_id, size, stock_count
+ProductVariant (product_variants)
+  id, productId, colour, imageUrl (image_url, single AI-generated card image),
+  rawFrontUrl, rawBackUrl (both nullable already), createdBy
+
+VariantSize (variant_sizes)
+  id, variantId, size, quantity (default 0), reservedQuantity (reserved_quantity, default 0),
+  updatedBy, updatedAt
+  -- CHECK constraints (migration 20260924121000_add_subcategories_and_size_ranges):
+  --   variant_sizes_quantity_nonnegative        CHECK (quantity >= 0)
+  --   variant_sizes_reserved_nonnegative        CHECK (reserved_quantity >= 0)
+  --   variant_sizes_reserved_lte_quantity       CHECK (reserved_quantity <= quantity)
+
+Subcategory (subcategories) / Category (categories) / SizeRange (size_ranges)
+  -- SizeRange is keyed by (categoryId, subcategoryId) together, not subcategoryId alone.
 ```
 
-Adding these three tables (if not already present) is a schema change — governed by AGENT_RULES.md: show the exact command, take a before row-count baseline, get explicit approval, before running anything.
+**Brand today:** there is no `brands` table. `GET /api/admin/brands` (`server/src/routes/products.js`, service `getBrands` in `server/src/services/products.js`) derives the list by querying `prisma.product.findMany({ where: { status: 'published' }, distinct: ['brand'] })` and de-duplicating case-insensitively in application code. Brand is, and today remains, a plain string column on `Product` — not a foreign key.
 
-**On the AI image vs. real photo split (confirmed decision):** the generated image is card-only. Clicking into a product on the storefront shows the real front/back photos. Every variant row must end up with both — a variant missing either breaks that experience.
+**Images today:** a variant's product-card image is the single `ProductVariant.imageUrl` column. Additional images exist via `ProductImage`, but that model is scoped to `productId`, not `variantId` — it has no way to tie an image to a specific colour, and no `provenance` column at all.
+
+**Write paths today:** `createProduct` accepts `{ slug, name, brand, categoryId, price, section }`; `updateProduct` accepts `{ name, brand, price, section, categoryId, status, variants }`. **Neither accepts `subcategoryId`** — this is the blocker already flagged in §11.
+
+### 5b. Proposed changes — NOT approved, NOT applied
+
+Nothing below has an owner sign-off. **Each of these is a schema change under `AGENT_RULES.md` and requires explicit owner approval before any migration is written** — no Prisma command runs off the back of this document alone.
+
+**1. Brand — string column, or a `Brand` table?**
+- *Keep `Product.brand` as a string* (no new table): zero migration, keeps `getBrands`'s existing distinct-query approach working as-is. Downside: the Step 2 "add a brand not yet in the list" action just becomes a new string value with no referential integrity — nothing stops two brands differing only by case/whitespace from both persisting if the dedup-on-read logic in `getBrands` is ever bypassed.
+- *Add a `Brand` table with `Product.brandId`*: gives real referential integrity and an admin-manageable brand list independent of what happens to be published right now (today's `getBrands` only sees `status: 'published'` products, so an unpublished product's brand doesn't show up). Downside: a real migration, a backfill of existing `products.brand` values into rows, and a rewrite of `getBrands`, `createProduct`, and `updateProduct`.
+- Not decided here — flagging both options for the owner.
+
+**2. Multiple ordered images per colour, with provenance — extend `ProductImage`, or add a new table?**
+- *Extend `ProductImage`*: add a nullable `variantId` (so it can point at a variant instead of, or in addition to, a product) plus a `provenance` column. Reuses an existing model and its `sortOrder` column. Downside: `ProductImage` is currently product-scoped everywhere it's read (storefront gallery, admin product editor); overloading it to also mean "per-variant" needs every existing read site checked so a null/wrong `variantId` doesn't silently show the wrong images.
+- *Add a new `variant_images` table* (`id, variantId, url, sortOrder, provenance`): keeps `ProductImage` untouched and its existing behavior guaranteed unaffected. Downside: a second, near-identical image table with its own queries, and a decision needed on whether `ProductVariant.imageUrl` (today's single card-image column) is kept as a denormalized "sortOrder 0" convenience or dropped in favor of always reading from the new table.
+- Either option needs `provenance: 'ai-generated' | 'staff-supplied'`, since Step 1's Mode A and Mode B can now produce images for the same product's colour history. Not decided here — flagging both options for the owner.
+- `raw_front_url` / `raw_back_url` need no schema change — both are already nullable on `ProductVariant` today, which already covers Mode B leaving them `null`.
+
+**3. `subcategoryId` on `createProduct` / `updateProduct`** — the write functions need this field accepted and persisted; this is application-code work, not a schema change (the `subcategory_id` column already exists on `Product`), but it's listed here because Step 2 cannot function end-to-end without it. See §11 known blockers.
 
 ---
 
 ## 6. What gets written on Approve
 
-| Scenario | `products` | `product_variants` | `variant_sizes` |
-|---|---|---|---|
-| Brand new product, first color | INSERT (1 row) | INSERT (1 row) | INSERT (per size) |
-| New color on an existing product | no write | INSERT (1 row) | INSERT (per size) |
-| Restock of an existing color | no write | no write | UPDATE (atomic increment, per size) |
+| Scenario | `products` | `product_variants` | images (§5b, table TBD) | `variant_sizes` |
+|---|---|---|---|---|
+| Brand new product, first colour | INSERT (1 row) | INSERT (1 row) | INSERT (per image) | INSERT (per size, `quantity`) |
+| New colour on an existing product | no write | INSERT (1 row) | INSERT (per image) | INSERT (per size, `quantity`) |
+| Restock of an existing colour (side-door entry) | no write | no write | no write | UPDATE (`quantity` atomic increment, per size) |
 
-**No duplicate `products` row is ever created** — matching in Step 1 happens before any data is written, not after.
+**Dedup does not block saving:** the background dedup check in Step 2 (§4) surfaces a likely match, but staff can dismiss the warning and save anyway — it's advisory, not a gate. See §11 #4, which this must stay consistent with.
 
 ---
 
 ## 7. Hardcoded AI prompt (image generation)
 
-Lives server-side only — never exposed to staff, never editable through the UI. This is what keeps every generated image visually consistent across the whole catalog.
+Lives server-side only — never exposed to staff, never editable through the UI. This is what keeps every generated image visually consistent across the whole catalog. Used only in Mode A, once per uploaded photo.
 
 ```javascript
 // server-side only
@@ -159,23 +218,25 @@ A store-wide style change (e.g. different background color) is a one-line edit h
 
 ---
 
-## 8. Connecting to the website admin (category / sub-category / size ranges)
+## 8. Connecting to the website admin (brand / category / sub-category / size ranges)
 
 The upload form must never hardcode these — they come live from wherever the website's own admin panel manages them.
 
+- `GET /api/admin/brands` → the current brand list (for the Step 2 searchable dropdown)
 - `GET /api/admin/categories` → the fixed list (Men / Women / Kids, or whatever admin has configured)
 - `GET /api/admin/subcategories?category=Men` → sub-categories under that category
-- `GET /api/admin/size-ranges?category=Men&subcategory=Trousers` → the size list for that combination
+- `GET /api/admin/size-ranges?category=<id>&subcategory=<id>` → the size list for that category+sub-category pair (`SizeRange` is keyed by both together — §5a)
+- `GET /api/admin/upload/products?q=` → background dedup search, called debounced after brand+name are set (§4) — **not** an up-front search step
 
-**Build note for whoever picks this up (Claude Code or a developer):** if these endpoints or their backing tables don't exist yet, creating them is a schema change and goes through the standard approval process first. Cache these lookups client-side per session (they don't change mid-session) to avoid refetching on every color block — see §9.
+**Build note for whoever picks this up (Claude Code or a developer):** if these endpoints or their backing tables don't exist yet, creating them is a schema change and goes through the standard approval process first. Cache these lookups client-side per session (they don't change mid-session) to avoid refetching on every colour block — see §9.
 
 ---
 
 ## 9. Performance — keep the page light
 
 1. **Resize/compress photos client-side before upload** (canvas resize to ~1200px wide) — cuts upload size dramatically with no visible quality loss for this use case.
-2. **Cache admin lookups (sub-categories, size ranges) per session** — fetch once per category selection, not per color block.
-3. **Search-as-you-type queries the DB directly, not the whole catalog on page load.**
+2. **Cache admin lookups (brands, sub-categories, size ranges) per session** — fetch once per selection, not per colour block.
+3. **Debounce the background dedup query** in Step 2 — it fires on brand+name changes, not on every keystroke.
 4. **Keep the build lightweight** — this is a staff-only internal tool, not a marketing page; a heavy frontend framework isn't needed.
 5. **Serve generated + uploaded images as compressed WebP**, not raw PNG, in both Storage and the storefront.
 
@@ -186,11 +247,11 @@ The upload form must never hardcode these — they come live from wherever the w
 This writes directly into a production database with no backups — these are not optional hardening ideas, they're baseline requirements before this goes live.
 
 1. **Staff login required** on `/upload` — never a public URL. Every upload maps to a specific staff account (also gives the audit trail flagged in §11).
-2. **Server-side re-validation of category/sub-category/size** against the admin's current live lists — never trust whatever the client submitted, even from a `<select>`, since a bypassed or buggy client can submit anything.
+2. **Server-side re-validation of brand/category/sub-category/size** against the admin's current live lists — never trust whatever the client submitted, even from a `<select>`, since a bypassed or buggy client can submit anything.
 3. **Signed, short-lived upload URLs** for Supabase Storage — the browser never holds a long-lived storage key.
-4. **Server-side file validation** — actual file type check (not just extension), max file size enforced, to block disguised or oversized uploads.
-5. **Rate-limit the Gemini-calling endpoint per staff account** — protects the (soon-to-be-paid) API budget from a bug or compromised account burning through it via a retry loop.
-6. **DB-level constraint preventing negative stock** (`CHECK (stock_count >= 0)`), not just a UI check.
+4. **Server-side file validation** — actual file type check (not just extension), max file size enforced, to block disguised or oversized uploads. Applies to both the Mode A raw camera photo and the Mode B supplied card/gallery files.
+5. **Rate-limit the Gemini-calling endpoints per staff account** — protects the (soon-to-be-paid) API budget from a bug or compromised account burning through it via a retry loop. Applies to all three Gemini uses in §3, not just image generation.
+6. **DB-level constraint preventing negative stock** — already exists: `variant_sizes_quantity_nonnegative CHECK (quantity >= 0)` (and the paired `reserved_quantity` checks, §5a) — not just a UI check.
 7. **Atomic DB writes for every stock change** — the single highest-priority item on this list, since a race condition here can silently corrupt data with no backup to recover from.
 8. **API keys (Gemini, Supabase service role) live only in backend environment variables** — never shipped to the browser or committed to the repo.
 9. **HTTPS everywhere**; `/upload` marked `noindex` and not linked from the public site.
@@ -204,23 +265,32 @@ Two are flagged as **must-fix before going live**, not later polish — because 
 1. **Race conditions on stock** — *(must-fix)* atomic increment/decrement at the DB level, always; never read-then-write in app code.
 2. **Partial failures mid-flow** — *(must-fix)* e.g. AI image generates but the DB insert fails right after, leaving an orphaned Storage file or a `products` row with no variant. Wrap final writes in a DB transaction; treat uploads as "pending" until the full write succeeds.
 3. **Access control** — *(must-fix)* `/upload` must require staff login; enforce on every request, not just the page load.
-4. **Duplicate detection relies on staff diligence** — search-as-you-type helps, but a fuzzy-match warning even on the "new product" path ("Similar product found: X — same item?") adds a second layer.
+4. **Duplicate detection relies on staff diligence** — the background dedup warning in Step 2 helps, but it only fires after brand+name are set; a staff member who ignores the warning and saves anyway still creates a duplicate.
 5. **No audit trail yet** — `created_by` / `updated_by` / timestamps, or an activity log table, given there's no backup to fall back on if something goes wrong.
 6. **Discard doesn't yet guarantee storage cleanup** — rejected/abandoned uploads may leave orphaned files in Supabase Storage; needs an explicit delete-on-discard or a periodic cleanup job.
 7. **No edit path for already-live products** — flow covers create + restock, not fixing a typo or wrong field after approval. Decide whether that happens via this same form or the website admin directly.
 8. **Price changes not covered** — price is set once at creation; no defined path for updating it later.
 9. **Out-of-stock behavior undefined** — when a size hits 0 everywhere, does the storefront auto-hide/disable it, or does it need a manual step?
-10. **Image quality isn't checked before the AI call** — a blurry or wrong photo still triggers an API call before a human catches the problem. A quick "does this look right?" moment before generation could save wasted calls once on the paid tier.
+10. **Image quality isn't checked before the AI call** — a blurry or wrong photo still triggers an API call before a human catches the problem (Mode A only). A quick "does this look right?" moment before generation could save wasted calls once on the paid tier.
 11. **Product lifecycle when fully out of stock everywhere** — undefined whether it disappears, shows "out of stock," or needs manual archiving.
+12. **Variant/size deletion can orphan a reservation** — deferred fix, documented separately in the commit history; not yet resolved by this flow.
+
+### Known blockers (current, as of this rewrite)
+
+These block real end-to-end testing today, independent of the flow design above:
+
+- **`GEMINI_API_KEY` is not yet present** — none of the three Gemini calls in §3 can run until this is set.
+- **`size_ranges` table has 0 rows** — Step 3 cannot function for any sub-category until real size ranges are seeded.
+- **`subcategoryId` is not yet an accepted field on `createProduct`/`updateProduct`** — the Step 2 category→sub-category→price write path needs this added before Step 2 can persist correctly.
 
 ---
 
 ## 12. Sequencing
 
-**Phase 1:** Confirm the admin-side prerequisites exist (or get built first): category/sub-category management, and a size-range config per category+subcategory. This feature depends on both.
-**Phase 2:** Build the endpoints in §8, get any schema additions (§5) approved and applied via `npm run db:apply`, then build the upload form per §4.
+**Phase 1:** Clear the known blockers above — seed `size_ranges`, add `GEMINI_API_KEY`, accept `subcategoryId` on `createProduct`/`updateProduct`.
+**Phase 2:** Build the endpoints in §8, get any schema additions (§5) approved and applied via `npm run db:apply`, then build the upload form per §4 (Step 1 both modes → Step 2 → Step 3 → Step 4 → Review).
 **Phase 3:** Resolve the must-fix items in §11 (#1, #2, #3) before any real product data goes through it.
-**Phase 4:** Test end-to-end with real products — new product, new color on existing, restock of existing color — before retiring any manual upload process.
+**Phase 4:** Test end-to-end with real products — new product (Mode A), new product (Mode B), new colour on existing, restock via the side-door entry point — before retiring any manual upload process.
 **Phase 5:** Revisit remaining §11 risks (audit trail, edit path, price changes, out-of-stock behavior) and the Gemini free→paid decision, once the form is in daily use.
 
-This document is the current reference for the build — supersedes the earlier Telegram-bot version of this spec.
+This document is the current reference for the build — supersedes both the earlier Telegram-bot version and the search-first one-page version of this spec.
