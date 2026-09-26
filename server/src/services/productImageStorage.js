@@ -1,0 +1,73 @@
+// Supabase Storage client for product images. Uses the service-role key —
+// server-side only, never exposed to the frontend (see AGENT_RULES.md /
+// CLAUDE.md: SUPABASE_SERVICE_ROLE_KEY must never reach a VITE_ env var).
+// Mirrors server/src/services/storage.js's client pattern; kept as a
+// separate file/bucket since receipts are private and product images are
+// public — conflating the two would risk a receipts-bucket visibility
+// mistake.
+const { createClient } = require('@supabase/supabase-js')
+const { randomUUID } = require('crypto')
+
+const BUCKET = process.env.PRODUCT_IMAGES_BUCKET
+
+const ALLOWED_CONTENT_TYPES = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+}
+
+let client = null
+function supabase() {
+  if (!client) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured')
+    }
+    client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    })
+  }
+  return client
+}
+
+// path is server-generated (see routes/upload.js's POST /admin/upload/sign)
+// — this function never receives anything the client chose.
+async function createSignedUploadUrl(path) {
+  if (!BUCKET) throw new Error('PRODUCT_IMAGES_BUCKET is not configured')
+  const { data, error } = await supabase().storage.from(BUCKET).createSignedUploadUrl(path)
+  if (error) throw new Error(`Signed upload URL failed: ${error.message}`)
+  return data // { signedUrl, path, token }
+}
+
+function publicUrlFor(path) {
+  if (!BUCKET) throw new Error('PRODUCT_IMAGES_BUCKET is not configured')
+  const { data } = supabase().storage.from(BUCKET).getPublicUrl(path)
+  return data.publicUrl
+}
+
+// kind is 'raw' (a camera photo from Step 1 Mode A) or 'card' (a
+// generated/staff-supplied product-card or gallery image) — purely a
+// folder label, chosen by the caller, never anything the client can turn
+// into an arbitrary storage path. The path itself — the part that
+// actually determines where the file lands — is always generated here
+// server-side: `${kind}/${yyyy}/${mm}/${randomUUID()}.${ext}`.
+async function signProductImageUpload({ kind, contentType }) {
+  if (kind !== 'raw' && kind !== 'card') {
+    return { ok: false, status: 400, error: 'kind must be "raw" or "card"' }
+  }
+  const ext = ALLOWED_CONTENT_TYPES[contentType]
+  if (!ext) {
+    return { ok: false, status: 400, error: 'contentType must be image/jpeg, image/png or image/webp' }
+  }
+
+  const now = new Date()
+  const yyyy = now.getUTCFullYear()
+  const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
+  const path = `${kind}/${yyyy}/${mm}/${randomUUID()}.${ext}`
+
+  const { signedUrl, token } = await createSignedUploadUrl(path)
+  const publicUrl = publicUrlFor(path)
+
+  return { ok: true, uploadUrl: signedUrl, token, path, publicUrl }
+}
+
+module.exports = { createSignedUploadUrl, publicUrlFor, signProductImageUpload, ALLOWED_CONTENT_TYPES, BUCKET }

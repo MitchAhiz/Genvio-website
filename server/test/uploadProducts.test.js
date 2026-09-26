@@ -15,6 +15,9 @@ const assert = require('node:assert/strict')
 const path = require('node:path')
 
 process.env.SUPABASE_URL = 'https://project-ref.supabase.co'
+process.env.PRODUCT_IMAGES_BUCKET = 'product-images'
+
+const GOOD_IMAGE_URL = 'https://project-ref.supabase.co/storage/v1/object/public/product-images/card/2026/09/img1.jpg'
 
 // ---------------------------------------------------------------------------
 // Fake Prisma client with snapshot/rollback $transaction
@@ -198,7 +201,7 @@ beforeEach(() => {
 function goodColour(overrides = {}) {
   return {
     colourName: 'Burgundy',
-    images: [{ url: 'https://project-ref.supabase.co/storage/v1/object/sign/x.jpg', provenance: 'ai-generated' }],
+    images: [{ url: GOOD_IMAGE_URL, provenance: 'ai-generated' }],
     sizes: [{ size: 'M', quantity: 5 }],
     ...overrides,
   }
@@ -321,6 +324,51 @@ test('an image URL on a non-Supabase host is rejected', async () => {
   )
   assert.equal(result.ok, false)
   assert.match(result.error, /supabase/i)
+})
+
+test('a lookalike host ("supabase.co.evil.com") is rejected — exact host match, not substring', async () => {
+  const result = await createUploadProduct(
+    goodInput({
+      colours: [
+        goodColour({
+          images: [
+            { url: 'https://project-ref.supabase.co.evil.com/storage/v1/object/public/product-images/x.jpg', provenance: 'ai-generated' },
+          ],
+        }),
+      ],
+    })
+  )
+  assert.equal(result.ok, false)
+})
+
+test('a URL on the right host but in a different Storage bucket is rejected', async () => {
+  const result = await createUploadProduct(
+    goodInput({
+      colours: [
+        goodColour({
+          images: [
+            { url: 'https://project-ref.supabase.co/storage/v1/object/public/payment-receipts/x.jpg', provenance: 'ai-generated' },
+          ],
+        }),
+      ],
+    })
+  )
+  assert.equal(result.ok, false)
+})
+
+test('a URL on the right host but a different (private/sign) path is rejected', async () => {
+  const result = await createUploadProduct(
+    goodInput({
+      colours: [
+        goodColour({
+          images: [
+            { url: 'https://project-ref.supabase.co/storage/v1/object/sign/product-images/x.jpg', provenance: 'ai-generated' },
+          ],
+        }),
+      ],
+    })
+  )
+  assert.equal(result.ok, false)
 })
 
 // ---------------------------------------------------------------------------

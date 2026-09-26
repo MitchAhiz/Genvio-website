@@ -57,6 +57,10 @@ async function normalizeBrand(tx, rawBrand) {
   return existing ? existing.brand : trimmed
 }
 
+// Exact host match (never includes()/substring — that would let
+// "supabase.co.evil.com" through) AND the path must sit under this
+// server's own public product-images bucket — so a URL for some other
+// bucket, or some other path on the right host, is rejected too.
 function isSupabaseStorageUrl(url) {
   if (typeof url !== 'string') return false
   let parsed
@@ -74,7 +78,12 @@ function isSupabaseStorageUrl(url) {
   } catch {
     return false
   }
-  return parsed.host === expectedHost
+  if (parsed.host !== expectedHost) return false
+
+  const bucket = process.env.PRODUCT_IMAGES_BUCKET
+  if (!bucket) return false
+  const expectedPrefix = `/storage/v1/object/public/${bucket}/`
+  return parsed.pathname.startsWith(expectedPrefix)
 }
 
 // Validates one colour block's shape (images, sizes) against the allowed
