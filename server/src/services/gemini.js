@@ -7,41 +7,14 @@
 // check for it and return 503 before this module's functions are ever
 // invoked, so nothing here needs its own "key missing" branch.
 const { GoogleGenAI, ApiError, Type } = require('@google/genai')
+const { FRONT_PROMPT, BACK_PROMPT, CARD_GENERATION_CONFIG } = require('../ai/cardPrompts')
 
-// "Nano Banana" — Gemini's current generateContent-based image model.
-// Chosen over the gemini-3-pro-image-preview tier: preview models can be
-// pulled or restricted without notice, and this endpoint needs to stay
-// working on whatever tier the project's key has, not the newest preview.
-// Confirmed live (read-only models.get, not an actual generation) that
-// this key can reach it: listed, generateContent is a supported action,
-// no billing-gate error like the ones the deprecated text models gave.
-const IMAGE_MODEL = 'gemini-2.5-flash-image'
 // Text model with reliable JSON (responseSchema) mode, used for the
 // colour/name suggestion call. gemini-2.5-flash is no longer available to
 // this key (confirmed via a live call, which 404s with "no longer
 // available to new users" and points at this model) — verified working
 // live before committing.
 const TEXT_MODEL = 'gemini-3.8-flash'
-
-// Lives server-side only — never exposed to staff, never editable through
-// the UI. See product-upload-project.md §7. Used only in Mode A, once per
-// uploaded photo.
-const CARD_IMAGE_PROMPT = `
-You are generating a product-card photo for an e-commerce clothing store.
-Using the uploaded garment photo(s) as reference, generate a photorealistic
-image of the SAME garment worn by a neutral studio model.
-
-Rules — do not deviate:
-- Preserve the garment's exact color, fabric texture, fit, and any visible
-  logos or stitching from the source photo(s).
-- Studio background: plain, light neutral grey (#f2f0eb).
-- Lighting: soft, even, front-facing — no harsh shadows.
-- Model: front-facing, neutral pose, face not the focus, cropped at
-  chest-to-thigh unless the garment requires full length.
-- Do not add accessories, jewelry, or props not present in the source photo.
-- Output must look like a professional retail product photo, not an
-  illustration or stylized render.
-`
 
 const SUGGEST_PROMPT = `Look at this clothing product photo. Suggest a short
 colour name for the garment's dominant colour, and a short garment
@@ -83,31 +56,40 @@ function isQuotaError(err) {
   return /RESOURCE_EXHAUSTED|quota/i.test(err?.message || '')
 }
 
-// imageBuffer/mimeType are the source photo, already fetched server-side
-// by the caller (routes/upload.js only ever fetches URLs that passed
-// isSupabaseStorageUrl — this function never fetches anything itself).
-// Returns the generated image's raw bytes + mime type; the caller uploads
-// them to Storage. Throws on failure — quota errors are recognizable via
-// isQuotaError so the route can give the friendly §3 message.
-async function generateProductCardImage({ imageBuffer, mimeType }) {
+// view: 'front' | 'back' — picks the loaded prompt (card-front-women.txt
+// / card-back-women.txt). images: an ORDERED array of { buffer, mimeType }
+// — for 'front' this is [sourcePhoto]; for 'back' this is
+// [backPhoto, approvedFrontCard], since the back prompt refers to them
+// positionally as IMAGE 1 / IMAGE 2. Every image is already fetched
+// server-side by the caller (routes/upload.js only ever fetches URLs
+// that passed isSupabaseStorageUrl — this function never fetches
+// anything itself). Returns the generated image's raw bytes + mime
+// type; the caller uploads them to Storage. Throws on failure — quota
+// errors are recognizable via isQuotaError so the route can give the
+// friendly §3 message.
+async function generateProductCardImage({ view, images }) {
+  const promptText = view === 'back' ? BACK_PROMPT : FRONT_PROMPT
+  const parts = [
+    { text: promptText },
+    ...images.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.buffer.toString('base64') } })),
+  ]
+
   const response = await ai().models.generateContent({
-    model: IMAGE_MODEL,
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: CARD_IMAGE_PROMPT }, { inlineData: { mimeType, data: imageBuffer.toString('base64') } }],
-      },
-    ],
-    config: { httpOptions: { timeout: IMAGE_GENERATION_TIMEOUT_MS } },
+    model: CARD_GENERATION_CONFIG.model,
+    contents: [{ role: 'user', parts }],
+    config: {
+      imageConfig: { aspectRatio: CARD_GENERATION_CONFIG.aspectRatio },
+      httpOptions: { timeout: IMAGE_GENERATION_TIMEOUT_MS },
+    },
   })
 
-  const parts = response?.candidates?.[0]?.content?.parts || []
-  const imagePart = parts.find((p) => p.inlineData?.data)
+  const responseParts = response?.candidates?.[0]?.content?.parts || []
+  const imagePart = responseParts.find((p) => p.inlineData?.data)
   if (!imagePart) throw new Error('Gemini did not return an image')
 
   return {
     data: Buffer.from(imagePart.inlineData.data, 'base64'),
-    mimeType: imagePart.inlineData.mimeType || 'image/png',
+    mimeType: imagePart.inlineData.mimeType || CARD_GENERATION_CONFIG.outputMimeType,
   }
 }
 
@@ -145,7 +127,5 @@ module.exports = {
   generateProductCardImage,
   suggestColourAndDescription,
   isQuotaError,
-  IMAGE_MODEL,
   TEXT_MODEL,
-  CARD_IMAGE_PROMPT,
 }

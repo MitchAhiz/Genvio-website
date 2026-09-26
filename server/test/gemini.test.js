@@ -29,6 +29,7 @@ const GOOD_URL = 'https://project-ref.supabase.co/storage/v1/object/public/produ
 let generateContentBehavior = async () => {
   throw new Error('generateContentBehavior not set for this test')
 }
+let lastGenerateContentParams
 
 class FakeApiError extends Error {
   constructor({ message, status }) {
@@ -42,7 +43,12 @@ const fakeGenAiExports = {
     // eslint-disable-next-line no-useless-constructor
     constructor() {}
     get models() {
-      return { generateContent: (params) => generateContentBehavior(params) }
+      return {
+        generateContent: (params) => {
+          lastGenerateContentParams = params
+          return generateContentBehavior(params)
+        },
+      }
     }
   },
   ApiError: FakeApiError,
@@ -123,6 +129,7 @@ let baseUrl
 let originalFetch
 let fetchCalled
 let fetchShouldServe
+let fetchResponsesByUrl
 
 test.before(async () => {
   const app = express()
@@ -142,30 +149,30 @@ beforeEach(() => {
   lastUploadedBucket = undefined
   lastUploadedPath = undefined
   lastUploadedBuffer = undefined
+  lastGenerateContentParams = undefined
   fetchCalled = false
   fetchShouldServe = { buffer: Buffer.from('fake-source-image-bytes'), contentType: 'image/jpeg' }
+  fetchResponsesByUrl = new Map() // url -> { buffer, contentType }, overrides fetchShouldServe for that exact URL
   generateContentBehavior = async () => {
     throw new Error('generateContentBehavior not set for this test')
   }
 
-  // The route under test calls the real global `fetch` to fetch the
-  // source image; the test itself also uses `fetch` to call the server
-  // over loopback HTTP. Distinguish by URL so only the route's outbound
-  // "fetch a supposed image URL" call is faked.
+  // The route under test calls the real global `fetch` to fetch source
+  // images; the test itself also uses `fetch` to call the server over
+  // loopback HTTP. Distinguish by URL so only the route's outbound
+  // "fetch a supposed image URL" calls are faked.
   originalFetch = global.fetch
   global.fetch = async (url, opts) => {
     const urlStr = typeof url === 'string' ? url : url.url
     if (urlStr.startsWith(baseUrl)) return originalFetch(url, opts)
     fetchCalled = true
+    const served = fetchResponsesByUrl.get(urlStr) || fetchShouldServe
     return {
       ok: true,
       status: 200,
-      headers: { get: () => fetchShouldServe.contentType },
+      headers: { get: () => served.contentType },
       async arrayBuffer() {
-        return fetchShouldServe.buffer.buffer.slice(
-          fetchShouldServe.buffer.byteOffset,
-          fetchShouldServe.buffer.byteOffset + fetchShouldServe.buffer.byteLength
-        )
+        return served.buffer.buffer.slice(served.buffer.byteOffset, served.buffer.byteOffset + served.buffer.byteLength)
       },
     }
   }
@@ -183,7 +190,7 @@ test('generate-card: missing GEMINI_API_KEY returns 503, never crashes', async (
   const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
     method: 'POST',
     headers: authedHeaders(),
-    body: JSON.stringify({ sourceUrl: GOOD_URL }),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
   })
   assert.equal(res.status, 503)
   const body = await res.json()
@@ -212,7 +219,7 @@ test('generate-card: a non-bucket sourceUrl is rejected before any fetch is made
   const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
     method: 'POST',
     headers: authedHeaders(),
-    body: JSON.stringify({ sourceUrl: 'https://evil.example.com/x.jpg' }),
+    body: JSON.stringify({ sourceUrl: 'https://evil.example.com/x.jpg', view: 'front' }),
   })
   assert.equal(res.status, 400)
   assert.equal(fetchCalled, false)
@@ -241,7 +248,7 @@ test('generate-card: a Gemini quota error becomes 429 with the friendly message'
   const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
     method: 'POST',
     headers: authedHeaders(),
-    body: JSON.stringify({ sourceUrl: GOOD_URL }),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
   })
   assert.equal(res.status, 429)
   const body = await res.json()
@@ -341,7 +348,7 @@ test('generate-card: the generated image is uploaded under card/ with provenance
   const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
     method: 'POST',
     headers: authedHeaders(),
-    body: JSON.stringify({ sourceUrl: GOOD_URL }),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
   })
 
   assert.equal(res.status, 200)
@@ -354,6 +361,117 @@ test('generate-card: the generated image is uploaded under card/ with provenance
   assert.equal(fetchCalled, true) // the source photo WAS fetched, since sourceUrl passed the bucket check
 })
 
+// ---------------------------------------------------------------------------
+// Front sends one image; back sends two in the right order
+// ---------------------------------------------------------------------------
+
+test('generate-card front: sends exactly one image part, after the prompt text', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const fakeImageBytes = Buffer.from('fake-generated-png-bytes')
+  generateContentBehavior = async () => ({
+    candidates: [{ content: { parts: [{ inlineData: { data: fakeImageBytes.toString('base64'), mimeType: 'image/png' } }] } }],
+  })
+
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
+  })
+
+  assert.equal(res.status, 200)
+  const parts = lastGenerateContentParams.contents[0].parts
+  assert.equal(parts.length, 2) // [prompt text, 1 image]
+  assert.equal(typeof parts[0].text, 'string')
+  assert.ok(parts[0].text.length > 0)
+  assert.ok(parts[1].inlineData)
+})
+
+test('generate-card back: sends the back photo as IMAGE 1 and the approved front card as IMAGE 2, in that order', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const frontCardUrl = 'https://project-ref.supabase.co/storage/v1/object/public/product-images/card/2026/09/front-card.png'
+  const backPhotoBytes = Buffer.from('back-photo-bytes')
+  const frontCardBytes = Buffer.from('front-card-bytes')
+  fetchResponsesByUrl.set(GOOD_URL, { buffer: backPhotoBytes, contentType: 'image/jpeg' })
+  fetchResponsesByUrl.set(frontCardUrl, { buffer: frontCardBytes, contentType: 'image/png' })
+
+  const fakeImageBytes = Buffer.from('fake-generated-back-png-bytes')
+  generateContentBehavior = async () => ({
+    candidates: [{ content: { parts: [{ inlineData: { data: fakeImageBytes.toString('base64'), mimeType: 'image/png' } }] } }],
+  })
+
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'back', frontCardUrl }),
+  })
+
+  assert.equal(res.status, 200)
+  const parts = lastGenerateContentParams.contents[0].parts
+  assert.equal(parts.length, 3) // [prompt text, IMAGE 1, IMAGE 2]
+  assert.equal(Buffer.from(parts[1].inlineData.data, 'base64').toString(), 'back-photo-bytes') // IMAGE 1 = sourceUrl
+  assert.equal(Buffer.from(parts[2].inlineData.data, 'base64').toString(), 'front-card-bytes') // IMAGE 2 = frontCardUrl
+})
+
+// ---------------------------------------------------------------------------
+// Back view validation
+// ---------------------------------------------------------------------------
+
+test('generate-card back: rejected without frontCardUrl', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'back' }),
+  })
+  assert.equal(res.status, 400)
+  const body = await res.json()
+  assert.equal(body.error, 'Generate and approve the front card first.')
+  assert.equal(fetchCalled, false) // rejected before fetching anything
+})
+
+test('generate-card back: rejected when frontCardUrl is outside card/', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({
+      sourceUrl: GOOD_URL,
+      view: 'back',
+      frontCardUrl: 'https://project-ref.supabase.co/storage/v1/object/public/product-images/raw/2026/09/not-a-card.jpg',
+    }),
+  })
+  assert.equal(res.status, 400)
+  const body = await res.json()
+  assert.equal(body.error, 'Generate and approve the front card first.')
+})
+
+test('generate-card back: rejected when frontCardUrl is on the right host/bucket but not under card/', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({
+      sourceUrl: GOOD_URL,
+      view: 'back',
+      frontCardUrl: 'https://evil.example.com/storage/v1/object/public/product-images/card/x.jpg',
+    }),
+  })
+  assert.equal(res.status, 400)
+})
+
+test('generate-card: an invalid view value is rejected', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'side' }),
+  })
+  assert.equal(res.status, 400)
+  const body = await res.json()
+  assert.match(body.error, /view must be/)
+  assert.equal(fetchCalled, false)
+})
+
 test('generate-card: a response with no image part is treated as a failure, not a crash', async () => {
   process.env.GEMINI_API_KEY = 'fake-key'
   generateContentBehavior = async () => ({ candidates: [{ content: { parts: [{ text: 'no image here' }] } }] })
@@ -361,7 +479,7 @@ test('generate-card: a response with no image part is treated as a failure, not 
   const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
     method: 'POST',
     headers: authedHeaders(),
-    body: JSON.stringify({ sourceUrl: GOOD_URL }),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
   })
 
   assert.equal(res.status, 500)

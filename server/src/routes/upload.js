@@ -29,6 +29,18 @@ async function fetchSourceImage(sourceUrl) {
   return { buffer, contentType }
 }
 
+// True only for a URL that's both a valid product-images Storage URL AND
+// sits under the card/ folder — i.e. a previously generated/approved
+// card, never a raw camera photo. Used to gate the back view: it must
+// reference an actual approved front card, not just any bucket URL.
+function isUnderCardFolder(url) {
+  if (!isSupabaseStorageUrl(url)) return false
+  const bucket = process.env.PRODUCT_IMAGES_BUCKET
+  const prefix = `/storage/v1/object/public/${bucket}/`
+  const pathname = new URL(url).pathname
+  return pathname.slice(prefix.length).startsWith('card/')
+}
+
 // Model output is untrusted text (rule 6) — trims, collapses whitespace,
 // strips control characters and quotes, and caps length. Anything left
 // unusable becomes an empty string rather than an error, since these are
@@ -92,10 +104,20 @@ router.post('/admin/upload/sign', requireAdminAuth, requireCsrf, signLimit, asyn
   }
 })
 
-// Generates one product-card image from one already-uploaded source
-// photo (Step 1 Mode A — see product-upload-project.md §4/§7). The
-// frontend calls this once per uploaded photo; "Regenerate" is just
-// calling it again with the same sourceUrl.
+// Generates one product-card image (Step 1 Mode A — see
+// product-upload-project.md §4/§7). Women's apparel only for now (the
+// loaded prompts are women-specific); the products.js write path enforces
+// that separately for staff-supplied vs ai-generated images.
+//
+// view: 'front' → one image (sourceUrl). "Regenerate" is just calling
+// this again with the same sourceUrl.
+// view: 'back' → REQUIRES frontCardUrl (an already-generated/approved
+// front card under card/). Sent as TWO images, in order: IMAGE 1 =
+// sourceUrl (the back photo), IMAGE 2 = frontCardUrl — matching how the
+// back prompt refers to them. If the front card is regenerated after a
+// back card already exists, the back must be regenerated too (the
+// frontend's job to prompt for that — this endpoint has no notion of
+// "existing back card" to invalidate).
 router.post(
   '/admin/upload/generate-card',
   requireAdminAuth,
@@ -104,16 +126,28 @@ router.post(
   requireGeminiConfigured,
   async (req, res, next) => {
     try {
-      const { sourceUrl } = req.body || {}
-      // The server fetches the source image itself — but only ever a URL
-      // that already passed the same storage check every other image URL
-      // in this app is held to. No arbitrary URL is ever fetched.
+      const { sourceUrl, view, frontCardUrl } = req.body || {}
+      if (view !== 'front' && view !== 'back') {
+        return res.status(400).json({ error: 'view must be "front" or "back"' })
+      }
+      // The server fetches every source image itself — but only ever a
+      // URL that already passed the same storage check every other image
+      // URL in this app is held to. No arbitrary URL is ever fetched.
       if (!isSupabaseStorageUrl(sourceUrl)) {
         return res.status(400).json({ error: 'sourceUrl must be an image already uploaded to our storage' })
       }
+      if (view === 'back' && !isUnderCardFolder(frontCardUrl)) {
+        return res.status(400).json({ error: 'Generate and approve the front card first.' })
+      }
 
-      const { buffer, contentType } = await fetchSourceImage(sourceUrl)
-      const generated = await generateProductCardImage({ imageBuffer: buffer, mimeType: contentType })
+      const sourcePhoto = await fetchSourceImage(sourceUrl)
+      const images = [{ buffer: sourcePhoto.buffer, mimeType: sourcePhoto.contentType }]
+      if (view === 'back') {
+        const frontCard = await fetchSourceImage(frontCardUrl)
+        images.push({ buffer: frontCard.buffer, mimeType: frontCard.contentType })
+      }
+
+      const generated = await generateProductCardImage({ view, images })
 
       const ext = ALLOWED_CONTENT_TYPES[generated.mimeType] || 'png'
       const now = new Date()

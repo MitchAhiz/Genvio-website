@@ -159,6 +159,7 @@ async function createUploadProduct({ productId, brand, name, subcategoryId, pric
     const product = await prisma.$transaction(async (tx) => {
       let categoryId
       let resolvedSubcategoryId
+      let categoryName
       let baseProduct
       let sectionForNewProduct
       const seenColourNames = new Set()
@@ -171,6 +172,8 @@ async function createUploadProduct({ productId, brand, name, subcategoryId, pric
         if (!categoryId || !resolvedSubcategoryId) {
           throw new UploadError(400, 'This product has no category/sub-category set yet')
         }
+        const categoryRow = await tx.category.findUnique({ where: { id: categoryId }, select: { name: true } })
+        categoryName = categoryRow?.name || ''
         const existingVariants = await tx.productVariant.findMany({
           where: { productId },
           select: { colour: true },
@@ -190,7 +193,8 @@ async function createUploadProduct({ productId, brand, name, subcategoryId, pric
         if (!subcategory) throw new UploadError(400, 'subcategoryId is not a valid subcategory')
         categoryId = subcategory.categoryId
         resolvedSubcategoryId = subcategory.id
-        sectionForNewProduct = collapseWhitespace(subcategory.category.name).toLowerCase()
+        categoryName = subcategory.category.name
+        sectionForNewProduct = collapseWhitespace(categoryName).toLowerCase()
         if (!isValidSection(sectionForNewProduct)) {
           throw new UploadError(400, 'Category does not map to a known section (Men/Women/Kids)')
         }
@@ -203,6 +207,18 @@ async function createUploadProduct({ productId, brand, name, subcategoryId, pric
       const allowedSizes = new Set(sizeRange.sizes)
 
       const colourNames = colours.map((c) => validateColour(c, allowedSizes, seenColourNames))
+
+      // AI-generated cards are only prompted/approved for women's apparel
+      // right now (product-upload-project.md scope note) — staff-supplied
+      // images have no such restriction, since there's no AI prompt behind
+      // them to have scoped in the first place.
+      const isWomen = (categoryName || '').toLowerCase() === 'women'
+      if (!isWomen) {
+        const hasAiGenerated = colours.some((c) => c.images.some((img) => img.provenance === 'ai-generated'))
+        if (hasAiGenerated) {
+          throw new UploadError(400, "AI-generated cards are only set up for women's apparel for now.")
+        }
+      }
 
       if (!productId) {
         const normalizedBrand = await normalizeBrand(tx, brand)

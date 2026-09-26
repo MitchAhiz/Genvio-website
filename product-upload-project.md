@@ -5,6 +5,8 @@
 
 **Non-negotiable:** All schema-changing DB work on this feature falls under `AGENT_RULES.md` at the project root. No Prisma migration commands without explicit typed approval from the owner — every time, no exceptions. This applies to every new table below (`product_variants`, `variant_sizes`, and anything else this feature needs).
 
+**Launch scope:** the storefront itself is women's apparel only for now — Men and Kids sections will be hidden on the live site and reopened later. In this upload form, Category is therefore fixed to Women (staff choose only the Sub-category in Step 2); AI card generation is likewise women's-only for now (§3). **Men/Kids categories, sub-categories and products already in the database are not deleted or touched** — they stay exactly as they are for when those sections reopen; this is a storefront-visibility decision, not a data one.
+
 ---
 
 ## 1. Goal
@@ -46,8 +48,10 @@ Storefront (website.com) — reads products/variants/sizes, renders product card
 
 ## 3. AI provider: Gemini, free tier for now
 
+**Scope note:** AI card generation (Gemini image generation) is **women's apparel only for now** — the loaded prompts (§7) are written specifically for a Nigerian female model and women's garment construction. `POST /api/admin/upload/products` enforces this server-side: a colour with an `ai-generated` image is rejected outside the Women category. Staff-supplied images (Mode B) have no such restriction, since there's no AI prompt behind them to have scoped in the first place. Men's/Kids' card-generation prompts would be a separate, later addition — not an edit to the women's ones.
+
 **Decision:** Start on Gemini's free tier. Used for exactly **three** things — nothing else:
-1. **Product-card image generation** — Mode A only ("Shoot photos"); skipped entirely in Mode B ("Use a card I already have"). One generation call per uploaded photo (1 photo in → 1 card out, 2 photos in → 2 cards out).
+1. **Product-card image generation** — Mode A only ("Shoot photos"); skipped entirely in Mode B ("Use a card I already have"). One generation call per uploaded **front** photo. The **back** card, if a back photo was taken, is generated separately and only after the front card is approved — see §4 Step 1 and §7 for why it needs the approved front card as a reference.
 2. **Colour-name suggestion** — from `image[0]`, in either mode.
 3. **Product-name suggestion** — from `image[0]`, in either mode. The `POST /api/admin/upload/suggest` call returns the garment description only (e.g. "Linen Wrap Dress") — no brand, since Gemini never sees or knows the brand. The frontend builds the shown suggestion by prepending the already-chosen brand client-side (`<brand> <garment description>`, e.g. "ZARA Linen Wrap Dress"). Requires a brand to already be selected before the chip is shown, since there's nothing to prepend to otherwise.
 
@@ -74,9 +78,11 @@ Staff picks a mode at the top of the step:
 **Mode A — "Shoot photos"**
 - Front photo required, back photo optional. Both use `capture="environment"` so mobile opens the camera directly, not a gallery picker.
 - Raw photos upload to Supabase Storage via a short-lived signed URL (same pattern as `receipts.js`), persisted as the variant's `raw_front_url` / `raw_back_url`.
-- "Generate product cards" runs **one Gemini image generation per uploaded photo** — 1 photo in → 1 card out, 2 photos in → 2 cards out. Cards are shown side by side, each with its own **Regenerate**, plus a **Regenerate all**.
-- `images[0]` (generated from the front photo) becomes **the** product card shown in the catalogue grid. Any further generated image is a gallery image shown when a customer opens the product, in the order produced.
-- Nothing proceeds to Step 2 until cards are approved.
+- The **front** card is generated first, from the front photo alone. Once it's approved, and only then, the **back** card (if a back photo was taken) is generated from the back photo *plus* the approved front card as a reference — so the model, lighting and background match between the two. This is a hard dependency, not a UI nicety: `POST /api/admin/upload/generate-card` with `view: 'back'` is rejected without a `frontCardUrl` pointing at an already-generated card.
+- **If the front card is regenerated after a back card already exists, the back card must be regenerated too** — it was generated to match the *previous* front card, and no longer matches once the front changes. The frontend enforces this (e.g. by discarding/flagging the stale back card when Regenerate is used on the front).
+- Cards are shown side by side, each with its own **Regenerate**, plus a **Regenerate all** (front regenerates first, then back is re-run against the new front, per the rule above).
+- `images[0]` (the approved front card) becomes **the** product card shown in the catalogue grid. The back card, if generated, is a gallery image shown when a customer opens the product.
+- Nothing proceeds to Step 2 until the front card (and back card, if a back photo was taken) is approved.
 
 **Mode B — "Use a card I already have"**
 - For when staff already has a finished product-card image (a brand catalogue photo, an earlier shoot). Up to 3 plain file upload slots — first slot is the product card (required), the rest are optional gallery images.
@@ -94,7 +100,7 @@ Field order is deliberate:
 a. **Brand** — a searchable dropdown over the existing brand list, filtering as you type, with an option to add a brand not yet in the list.
 b. **Product name** — Gemini suggests `<brand> <garment description from photo>` once a brand is chosen. Shown as a tappable suggestion chip above an editable text field. The chip is disabled/greyed until a brand is picked. Staff can accept it, edit it, or type their own — never auto-committed.
 c. **Colour name** — Gemini suggests one from the photo, same chip pattern, same editability.
-d. **Category → Sub-category** (dependent dropdown) **→ Price**.
+d. **Category → Sub-category** (dependent dropdown) **→ Price**. Per the launch scope note above, Category is fixed to Women for now — staff pick only the Sub-category.
 
 **Dedup, replacing the old up-front search step:** there is no search step at the *front* of the flow — staff cannot search by product name before the product has a name; that was the flaw in the superseded design. Instead, once brand + name are set, the existing `GET /api/admin/upload/products?q=` endpoint is called in the background (debounced) and, if it finds a likely match, an inline warning appears under the name field showing the matching product(s) with a button: **"Add my colour to this product instead."** Choosing that locks brand/name/category/price to the existing product.
 
@@ -192,29 +198,13 @@ Subcategory (subcategories) / Category (categories) / SizeRange (size_ranges)
 
 ## 7. Hardcoded AI prompt (image generation)
 
-Lives server-side only — never exposed to staff, never editable through the UI. This is what keeps every generated image visually consistent across the whole catalog. Used only in Mode A, once per uploaded photo.
+Lives server-side only — never exposed to staff, never editable through the UI. This is what keeps every generated image visually consistent across the whole catalog. Used only in Mode A: once for the front photo, and again for the back photo (with the approved front card as a second reference image) if one was taken.
 
-```javascript
-// server-side only
-const CARD_IMAGE_PROMPT = `
-You are generating a product-card photo for an e-commerce clothing store.
-Using the uploaded garment photo(s) as reference, generate a photorealistic
-image of the SAME garment worn by a neutral studio model.
+**The prompt text itself lives in `server/src/ai/prompts/card-front-women.txt` and `card-back-women.txt`** — owner-approved source text, loaded once at server start by `server/src/ai/cardPrompts.js`. That loader fails loudly at startup if either file is missing or empty, rather than letting the first real request 500. Model name, aspect ratio and output format are pinned in one config object next to the loader, not in the prompt files.
 
-Rules — do not deviate:
-- Preserve the garment's exact color, fabric texture, fit, and any visible
-  logos or stitching from the source photo(s).
-- Studio background: plain, light neutral grey (#f2f0eb).
-- Lighting: soft, even, front-facing — no harsh shadows.
-- Model: front-facing, neutral pose, face not the focus, cropped at
-  chest-to-thigh unless the garment requires full length.
-- Do not add accessories, jewelry, or props not present in the source photo.
-- Output must look like a professional retail product photo, not an
-  illustration or stylized render.
-`;
-```
+**To change the look of generated cards: edit the relevant `.txt` file and restart the server.** Do not paste the prompt text into this doc, code comments, or anywhere else — the two `.txt` files are the single source of truth, and keeping a second copy anywhere just invites the copies to drift apart.
 
-A store-wide style change (e.g. different background color) is a one-line edit here, deployed once — never something staff touches per-product.
+Women's apparel only for now (§3 scope note) — a men's/kids' prompt pair, when added, would be new files alongside these, not edits to them.
 
 ---
 

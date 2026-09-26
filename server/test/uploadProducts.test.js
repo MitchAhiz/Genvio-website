@@ -74,6 +74,16 @@ function makeTx(state) {
         return result
       },
     },
+    category: {
+      async findUnique({ where, select }) {
+        const row = state.categories[where.id]
+        if (!row) return null
+        if (!select) return clone(row)
+        const out = {}
+        for (const key of Object.keys(select)) out[key] = row[key]
+        return out
+      },
+    },
     sizeRange: {
       async findUnique({ where }) {
         const { categoryId, subcategoryId } = where.categoryId_subcategoryId
@@ -577,4 +587,81 @@ test('exactly 10 colours in one request is accepted', async () => {
 
   assert.equal(result.ok, true)
   assert.equal(Object.values(store.variants).length, 10)
+})
+
+// ---------------------------------------------------------------------------
+// Women-only guard on AI-generated cards
+// ---------------------------------------------------------------------------
+
+function seedMenCategory() {
+  store.categories['cat-men'] = { id: 'cat-men', name: 'Men' }
+  store.subcategories['sub-men-shirts'] = { id: 'sub-men-shirts', categoryId: 'cat-men', name: 'Shirts' }
+  store.sizeRanges['cat-men:sub-men-shirts'] = {
+    categoryId: 'cat-men',
+    subcategoryId: 'sub-men-shirts',
+    sizes: ['S', 'M', 'L'],
+  }
+}
+
+test('an ai-generated image on a non-Women category is rejected', async () => {
+  seedMenCategory()
+
+  const result = await createUploadProduct(
+    goodInput({
+      subcategoryId: 'sub-men-shirts',
+      colours: [goodColour({ sizes: [{ size: 'M', quantity: 2 }] })], // goodColour's default image is ai-generated
+    })
+  )
+
+  assert.equal(result.ok, false)
+  assert.equal(result.error, "AI-generated cards are only set up for women's apparel for now.")
+  assert.deepEqual(store.products, {})
+})
+
+test('a staff-supplied image on a non-Women category is allowed', async () => {
+  seedMenCategory()
+
+  const result = await createUploadProduct(
+    goodInput({
+      subcategoryId: 'sub-men-shirts',
+      colours: [
+        goodColour({
+          sizes: [{ size: 'M', quantity: 2 }],
+          images: [{ url: GOOD_IMAGE_URL, provenance: 'staff-supplied' }],
+        }),
+      ],
+    })
+  )
+
+  assert.equal(result.ok, true)
+  assert.equal(result.product.section, 'men')
+})
+
+test('an ai-generated image on Women is allowed (the normal case)', async () => {
+  const result = await createUploadProduct(goodInput()) // default fixture is Women + ai-generated image
+  assert.equal(result.ok, true)
+})
+
+test('the women-only guard also applies when adding a colour to an existing non-Women product', async () => {
+  seedMenCategory()
+  store.products['prod-men-1'] = {
+    id: 'prod-men-1',
+    slug: 'some-mens-shirt',
+    brand: 'ZARA',
+    name: 'Oxford Shirt',
+    price: 15000,
+    section: 'men',
+    status: 'published',
+    categoryId: 'cat-men',
+    subcategoryId: 'sub-men-shirts',
+  }
+
+  const result = await createUploadProduct({
+    productId: 'prod-men-1',
+    colours: [goodColour({ colourName: 'Navy', sizes: [{ size: 'M', quantity: 2 }] })],
+    adminEmail: 'staff@genvio.test',
+  })
+
+  assert.equal(result.ok, false)
+  assert.equal(result.error, "AI-generated cards are only set up for women's apparel for now.")
 })
