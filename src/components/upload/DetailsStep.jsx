@@ -202,7 +202,7 @@ export default function DetailsStep({ capabilities, categoryId, cardImageUrl, lo
         </div>
       )}
 
-      <ColourField colourName={colourName} setColourName={setColourName} suggestion={suggestion} suggestError="" />
+      <ColourField colourName={colourName} setColourName={setColourName} suggestion={suggestion} suggestError={suggestError} />
 
       <div>
         <label className="mb-1 block text-xs font-semibold text-slate-500">Sub-category</label>

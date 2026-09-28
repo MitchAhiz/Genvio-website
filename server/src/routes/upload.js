@@ -1,5 +1,6 @@
 const { Router } = require('express')
 const { randomUUID } = require('crypto')
+const { ApiError } = require('@google/genai')
 const { requireAdminAuth } = require('../middleware/auth')
 const { requireCsrf } = require('../middleware/csrf')
 const { rateLimit } = require('../middleware/rateLimit')
@@ -10,6 +11,14 @@ const { generateProductCardImage, suggestColourAndDescription, isQuotaError, isZ
 const router = Router()
 
 const QUOTA_MESSAGE = 'Image generation is temporarily unavailable, try again shortly'
+
+// A genuine Gemini-side 503/UNAVAILABLE ("high demand") that survived
+// gemini.js's own short retry — distinct from AI_CARDS_DISABLED_CODE's 503
+// (a config/feature-flag state) even though both are HTTP 503 today, so
+// the two are still distinguishable by `code` if either needs its own
+// frontend handling later.
+const GEMINI_BUSY_CODE = 'GEMINI_BUSY'
+const GEMINI_BUSY_MESSAGE = 'Gemini is busy, try again in a moment'
 
 // Shared between the feature-flag gate below and the limit:0 error
 // mapping (§ "Error mapping") — both mean the same thing to staff:
@@ -190,6 +199,9 @@ router.post(
         return res.status(503).json({ error: AI_CARDS_DISABLED_MESSAGE, code: AI_CARDS_DISABLED_CODE })
       }
       if (isQuotaError(err)) return res.status(429).json({ error: QUOTA_MESSAGE })
+      if (err instanceof ApiError && err.status === 503) {
+        return res.status(503).json({ error: GEMINI_BUSY_MESSAGE, code: GEMINI_BUSY_CODE })
+      }
       next(err)
     }
   }
@@ -234,6 +246,9 @@ router.post(
       })
     } catch (err) {
       if (isQuotaError(err)) return res.status(429).json({ error: QUOTA_MESSAGE })
+      if (err instanceof ApiError && err.status === 503) {
+        return res.status(503).json({ error: GEMINI_BUSY_MESSAGE, code: GEMINI_BUSY_CODE })
+      }
       next(err)
     }
   }

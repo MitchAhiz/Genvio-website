@@ -36,6 +36,28 @@ const SUGGEST_SCHEMA = {
 const IMAGE_GENERATION_TIMEOUT_MS = 60000
 const SUGGEST_TIMEOUT_MS = 20000
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// Retries only Gemini's transient "high demand" 503/UNAVAILABLE (confirmed
+// live: 2 failures then a success on the 3rd attempt) — never a 429 (quota
+// won't clear itself) or any other error. Staff are watching live in the
+// UI, so delays are short and fixed, not exponential backoff. On final
+// failure the original ApiError is rethrown unchanged so callers/routes
+// can still branch on err.status.
+async function withGeminiRetry(fn, delaysMs) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await fn()
+    } catch (err) {
+      const isTransient503 = err instanceof ApiError && err.status === 503
+      if (!isTransient503 || attempt >= delaysMs.length) throw err
+      await sleep(delaysMs[attempt])
+    }
+  }
+}
+
 let client = null
 function ai() {
   if (!client) {
@@ -85,14 +107,18 @@ async function generateProductCardImage({ view, images }) {
     ...images.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.buffer.toString('base64') } })),
   ]
 
-  const response = await ai().models.generateContent({
-    model: CARD_GENERATION_CONFIG.model,
-    contents: [{ role: 'user', parts }],
-    config: {
-      imageConfig: { aspectRatio: CARD_GENERATION_CONFIG.aspectRatio },
-      httpOptions: { timeout: IMAGE_GENERATION_TIMEOUT_MS },
-    },
-  })
+  const response = await withGeminiRetry(
+    () =>
+      ai().models.generateContent({
+        model: CARD_GENERATION_CONFIG.model,
+        contents: [{ role: 'user', parts }],
+        config: {
+          imageConfig: { aspectRatio: CARD_GENERATION_CONFIG.aspectRatio },
+          httpOptions: { timeout: IMAGE_GENERATION_TIMEOUT_MS },
+        },
+      }),
+    [800]
+  )
 
   const responseParts = response?.candidates?.[0]?.content?.parts || []
   const imagePart = responseParts.find((p) => p.inlineData?.data)
@@ -108,20 +134,24 @@ async function generateProductCardImage({ view, images }) {
 // sanitising/length-capping colourName and garmentDescription before using
 // them for anything. This function only asks Gemini and parses its JSON.
 async function suggestColourAndDescription({ imageBuffer, mimeType }) {
-  const response = await ai().models.generateContent({
-    model: TEXT_MODEL,
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: SUGGEST_PROMPT }, { inlineData: { mimeType, data: imageBuffer.toString('base64') } }],
-      },
-    ],
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: SUGGEST_SCHEMA,
-      httpOptions: { timeout: SUGGEST_TIMEOUT_MS },
-    },
-  })
+  const response = await withGeminiRetry(
+    () =>
+      ai().models.generateContent({
+        model: TEXT_MODEL,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: SUGGEST_PROMPT }, { inlineData: { mimeType, data: imageBuffer.toString('base64') } }],
+          },
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: SUGGEST_SCHEMA,
+          httpOptions: { timeout: SUGGEST_TIMEOUT_MS },
+        },
+      }),
+    [400, 900]
+  )
 
   try {
     const parsed = JSON.parse(response.text)
