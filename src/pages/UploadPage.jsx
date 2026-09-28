@@ -3,6 +3,7 @@ import { getAdminCategories, createUploadProduct, restockUploadColour } from '..
 import { apiFetch } from '../api/client'
 import { useUploadCapabilities } from '../hooks/useUploadCapabilities'
 import { useNoIndex } from '../hooks/useNoIndex'
+import LoginForm from '../components/auth/LoginForm'
 import RestockBar from '../components/upload/RestockBar'
 import PhotoStep from '../components/upload/PhotoStep'
 import DetailsStep from '../components/upload/DetailsStep'
@@ -12,13 +13,15 @@ import ReviewStep from '../components/upload/ReviewStep'
 const STEPS = ['Photos', 'Details', 'Stock', 'Review']
 
 // Same auth-gate shape as AdminPage.jsx: GET /api/auth/me, null while
-// pending, redirect/prompt (never render the form) if not authed.
+// pending. Returns the setter too (like useState) so a successful
+// LoginForm sign-in can flip straight into the upload flow, the same way
+// AdminPage flips into AdminLayout — never a redirect to /admin.
 function useAuthGate() {
   const [authed, setAuthed] = useState(null)
   useEffect(() => {
     apiFetch('/api/auth/me').then(() => setAuthed(true)).catch(() => setAuthed(false))
   }, [])
-  return authed
+  return [authed, setAuthed]
 }
 
 function StepRail({ step, colourCount }) {
@@ -43,7 +46,7 @@ function StepRail({ step, colourCount }) {
 
 export default function UploadPage() {
   useNoIndex()
-  const authed = useAuthGate()
+  const [authed, setAuthed] = useAuthGate()
   const { capabilities, error: capError } = useUploadCapabilities()
 
   const [womenCategoryId, setWomenCategoryId] = useState(null)
@@ -177,16 +180,7 @@ export default function UploadPage() {
 
   if (authed === null) return null
   if (!authed) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-center">
-        <div>
-          <p className="text-lg font-semibold text-slate-900">Staff sign-in required</p>
-          <p className="mt-1 text-sm text-slate-500">
-            <a href="/admin" className="underline">Sign in via /admin</a> to use the upload tool.
-          </p>
-        </div>
-      </div>
-    )
+    return <LoginForm title="Sign in to upload products" onLogin={() => setAuthed(true)} />
   }
 
   // Every field/step below (sub-category dropdown, size range) depends on a
