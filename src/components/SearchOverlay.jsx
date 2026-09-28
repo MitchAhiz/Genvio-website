@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getProducts, formatPrice } from '../api/products'
-import { getSection, productPath } from '../sections'
+import { getSection, getVisibleSections, productPath } from '../sections'
+import { useSiteConfig } from '../hooks/useSiteConfig'
 import { SearchIcon } from './icons'
 
-// Searches every retail section; each result shows its section and opens in
-// that section (the theme follows).
+// Searches every visible retail section; each result shows its section and
+// opens in that section (the theme follows).
 export default function SearchOverlay({ onClose }) {
+  const { config } = useSiteConfig()
   const [query, setQuery] = useState('')
   const [products, setProducts] = useState([])
   const inputRef = useRef(null)
@@ -22,10 +24,11 @@ export default function SearchOverlay({ onClose }) {
   }, [onClose])
 
   useEffect(() => {
+    const visibleKeys = new Set(getVisibleSections(config?.section_visibility).map((s) => s.key))
     getProducts()
-      .then(setProducts)
+      .then((all) => setProducts(all.filter((p) => visibleKeys.has(p.section))))
       .catch((err) => console.error('Failed to load products for search:', err))
-  }, [])
+  }, [config])
 
   const q = query.toLowerCase().trim()
   const results = q
