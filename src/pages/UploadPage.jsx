@@ -47,11 +47,12 @@ function StepRail({ step, colourCount }) {
 export default function UploadPage() {
   useNoIndex()
   const [authed, setAuthed] = useAuthGate()
-  const { capabilities, error: capError } = useUploadCapabilities()
+  const { capabilities, error: capError } = useUploadCapabilities(authed === true)
 
   const [womenCategoryId, setWomenCategoryId] = useState(null)
   const [categoryStatus, setCategoryStatus] = useState('loading') // 'loading' | 'ready' | 'missing'
   useEffect(() => {
+    if (authed !== true) return
     getAdminCategories('women')
       .then((cats) => {
         if (cats[0]?.id) {
@@ -62,7 +63,7 @@ export default function UploadPage() {
         }
       })
       .catch(() => setCategoryStatus('missing'))
-  }, [])
+  }, [authed])
 
   const [mode, setMode] = useState('new') // 'new' | 'restock'
   const [step, setStep] = useState(0)
