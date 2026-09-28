@@ -217,7 +217,7 @@ const { createUploadProduct, restockVariant } = require(
 
 beforeEach(() => {
   store = freshStore()
-  store.categories['cat-women'] = { id: 'cat-women', name: 'Women' }
+  store.categories['cat-women'] = { id: 'cat-women', name: "Women's Apparel", section: 'women' }
   store.subcategories['sub-dresses'] = { id: 'sub-dresses', categoryId: 'cat-women', name: 'Dresses' }
   store.sizeRanges['cat-women:sub-dresses'] = {
     categoryId: 'cat-women',
@@ -615,7 +615,7 @@ test('exactly 10 colours in one request is accepted', async () => {
 // ---------------------------------------------------------------------------
 
 function seedMenCategory() {
-  store.categories['cat-men'] = { id: 'cat-men', name: 'Men' }
+  store.categories['cat-men'] = { id: 'cat-men', name: 'Men Apparel', section: 'men' }
   store.subcategories['sub-men-shirts'] = { id: 'sub-men-shirts', categoryId: 'cat-men', name: 'Shirts' }
   store.sizeRanges['cat-men:sub-men-shirts'] = {
     categoryId: 'cat-men',

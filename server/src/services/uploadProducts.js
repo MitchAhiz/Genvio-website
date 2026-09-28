@@ -219,7 +219,7 @@ async function createUploadProduct({ productId, brand, name, subcategoryId, pric
     const product = await prisma.$transaction(async (tx) => {
       let categoryId
       let resolvedSubcategoryId
-      let categoryName
+      let categorySection
       let baseProduct
       let sectionForNewProduct
       const seenColourNames = new Set()
@@ -232,8 +232,8 @@ async function createUploadProduct({ productId, brand, name, subcategoryId, pric
         if (!categoryId || !resolvedSubcategoryId) {
           throw new UploadError(400, 'This product has no category/sub-category set yet')
         }
-        const categoryRow = await tx.category.findUnique({ where: { id: categoryId }, select: { name: true } })
-        categoryName = categoryRow?.name || ''
+        const categoryRow = await tx.category.findUnique({ where: { id: categoryId }, select: { name: true, section: true } })
+        categorySection = collapseWhitespace(categoryRow?.section || '').toLowerCase()
         const existingVariants = await tx.productVariant.findMany({
           where: { productId },
           select: { colour: true },
@@ -253,11 +253,11 @@ async function createUploadProduct({ productId, brand, name, subcategoryId, pric
         if (!subcategory) throw new UploadError(400, 'subcategoryId is not a valid subcategory')
         categoryId = subcategory.categoryId
         resolvedSubcategoryId = subcategory.id
-        categoryName = subcategory.category.name
-        sectionForNewProduct = collapseWhitespace(categoryName).toLowerCase()
+        sectionForNewProduct = collapseWhitespace(subcategory.category.section || '').toLowerCase()
         if (!isValidSection(sectionForNewProduct)) {
           throw new UploadError(400, 'Category does not map to a known section (Men/Women/Kids)')
         }
+        categorySection = sectionForNewProduct
       }
 
       const sizeRange = await tx.sizeRange.findUnique({
@@ -272,7 +272,7 @@ async function createUploadProduct({ productId, brand, name, subcategoryId, pric
       // right now (product-upload-project.md scope note) — staff-supplied
       // images have no such restriction, since there's no AI prompt behind
       // them to have scoped in the first place.
-      const isWomen = (categoryName || '').toLowerCase() === 'women'
+      const isWomen = categorySection === 'women'
       if (!isWomen) {
         const hasAiGenerated = colours.some((c) => c.images.some((img) => img.provenance === 'ai-generated'))
         if (hasAiGenerated) {
