@@ -10,7 +10,9 @@ function transformProduct(p) {
     section: p.section || 'women',
     price: p.price,
     isNew: Date.now() - new Date(p.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
-    images: p.images.map((img) => img.url),
+    images: p.images.length
+      ? p.images.map((img) => img.url)
+      : (p.variants[0]?.imageUrl ? [p.variants[0].imageUrl] : []),
     variants: p.variants.map((v) => ({
       colour: v.colour,
       hex: v.hex || '#888888',
