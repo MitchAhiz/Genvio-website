@@ -73,6 +73,7 @@ export default function UploadPage() {
   const [stockByBlock, setStockByBlock] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [submitSuccess, setSubmitSuccess] = useState('')
 
   const reset = () => {
     setMode('new')
@@ -88,6 +89,7 @@ export default function UploadPage() {
 
   // Restock side-door: skip photos and details entirely, jump to stock.
   const handleRestockPick = (product, variant) => {
+    setSubmitSuccess('')
     setMode('restock')
     setLockedProduct({
       id: product.id,
@@ -105,6 +107,7 @@ export default function UploadPage() {
   }
 
   const handlePhotosApproved = (payload) => {
+    setSubmitSuccess('')
     setPendingImages(payload)
     setStep(1)
   }
@@ -167,6 +170,7 @@ export default function UploadPage() {
           colours,
         })
       }
+      setSubmitSuccess(lockedProduct?.name || 'Product')
       reset()
     } catch (err) {
       // Leave the review screen intact on failure so staff can retry
@@ -210,6 +214,12 @@ export default function UploadPage() {
       </header>
 
       {capError && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{capError}</div>}
+
+      {submitSuccess && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+          ✓ "{submitSuccess}" published
+        </div>
+      )}
 
       {step < 2 && (
         <div className="mb-4">
