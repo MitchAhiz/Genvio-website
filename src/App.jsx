@@ -13,6 +13,7 @@ import WholesalePage from './pages/WholesalePage'
 import StaticPage from './pages/StaticPage'
 import MaintenancePage from './pages/MaintenancePage'
 import AdminPage from './pages/AdminPage'
+import UploadPage from './pages/UploadPage'
 import AdminProducts from './pages/admin/AdminProducts'
 import AdminOrders from './pages/admin/AdminOrders'
 import AdminAnalytics from './pages/admin/AdminAnalytics'
@@ -76,6 +77,8 @@ export default function App() {
           <Route path="wholesale" element={<AdminWholesale />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
+
+        <Route path="/upload" element={<UploadPage />} />
 
         <Route path="/shop" element={<ShopLayout />}>
           <Route index element={<ShopIndexRedirect />} />
