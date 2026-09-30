@@ -62,6 +62,13 @@ const fakePrisma = {
     async findFirst() {
       return null
     },
+    // releaseExpiredReservations() runs at the top of every createOrder()
+    // call (see reservations.js) — this suite never seeds a
+    // pending_verification order with an expired reservedUntil, so
+    // "nothing stale" is correct here.
+    async findMany() {
+      return []
+    },
     async create({ data }) {
       const order = {
         id: `order-${state.createdOrders.length + 1}`,

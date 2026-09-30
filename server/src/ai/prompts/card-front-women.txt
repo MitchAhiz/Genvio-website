@@ -1,0 +1,114 @@
+Transform the uploaded reference photo of the women's garment into a premium, highly realistic ecommerce fashion product photograph.
+
+THE PRODUCT COMES FIRST:
+The garment in the reference photo is the product being sold. Reproduce it exactly: its colour, fabric, texture, pattern or print, stitching, neckline, sleeves, length, silhouette, seams, buttons, zippers, pockets, embellishments and overall construction.
+
+* Do not brighten, darken, saturate or shift the garment's colour in any way.
+* Do not redesign, simplify, "improve", add to, or remove anything from the garment.
+* If a detail is not visible in the reference photo, do not invent it.
+* Do not add any text, logos, labels, watermarks or brand marks that are not on the garment itself.
+* If the garment is a top, skirt or trousers, complete the outfit with plain, neutral, understated pieces that do not draw attention away from the product.
+* No jewellery, bags, belts, scarves, hats or other accessories that a customer could mistake for part of the product. Footwear should be simple and neutral.
+
+MODEL:
+Create a photorealistic adult Nigerian female fashion model, approximately 25–32 years old, wearing the exact garment from the reference image.
+
+The model should have:
+
+* A clearly Nigerian/West African appearance.
+* A natural medium-dark to deep-brown Nigerian skin tone.
+* Natural, realistic facial features.
+* A healthy, naturally curvy Nigerian body type.
+* Moderately thick thighs, naturally fuller hips, and a defined but realistic waist.
+* A body that is neither fat nor extremely slim.
+* Do NOT make her skinny, runway-thin, extremely lean, or unnaturally hourglass-shaped.
+* Realistic Nigerian body proportions and anatomy.
+* Natural hair appropriate for a modern Nigerian woman.
+* Tasteful, minimal makeup.
+* An attractive but believable everyday Nigerian appearance.
+
+SKIN REALISM:
+The model must look like a real human photographed with a professional camera.
+
+Use:
+
+* Visible natural skin texture.
+* Realistic pores.
+* Subtle skin imperfections.
+* Natural variation in skin tone.
+* Realistic highlights and shadows on the skin.
+
+Absolutely avoid:
+
+* Plastic-looking skin.
+* Waxy skin.
+* Excessive beauty filtering.
+* Over-smoothed skin.
+* CGI appearance.
+* Artificial-looking facial features.
+* Unrealistic skin brightness or whitening.
+
+POSE:
+
+* Full-body fashion ecommerce photograph.
+* Model standing naturally and confidently.
+* Mostly facing the camera.
+* Relaxed shoulders and natural posture.
+* Elegant but simple fashion pose.
+* Keep both arms positioned so they do not hide important details of the garment.
+* Make sure the entire garment, from top to hem, is clearly visible.
+* Do not let hair, hands or body position obscure the clothing.
+
+PHOTOGRAPHY:
+Make it look like a real professional fashion photograph taken with a high-end camera.
+
+Use:
+
+* Premium Nigerian fashion ecommerce photography.
+* Soft professional studio lighting.
+* Natural shadows.
+* Accurate skin tones.
+* Accurate garment colours.
+* Sharp focus on both the model and the garment.
+* Realistic fabric folds.
+* Realistic fabric texture.
+* Natural garment physics.
+* High-resolution photographic detail.
+* Subtle depth of field.
+* A plain, seamless, very light grey studio background — the same light grey on every image. No props, no scenery, no gradients, no textures.
+
+COMPOSITION:
+
+* Vertical ecommerce product-photo composition.
+* Centre the model.
+* Leave reasonable negative space around her.
+* The garment should occupy most of the frame.
+* Keep the entire model visible.
+* Make the garment the visual focus.
+* Clean, premium, uncluttered composition suitable for a fashion ecommerce product card.
+
+REALISM:
+The final result must look like an actual photograph of a real Nigerian woman wearing the garment, NOT an AI-generated fashion illustration.
+
+Ensure:
+
+* Correct human anatomy.
+* Natural hands and fingers.
+* Realistic facial proportions.
+* Realistic hair strands.
+* Realistic fabric behaviour.
+* Realistic body proportions.
+* Natural shadows.
+* Natural skin texture.
+* No distorted limbs.
+* No extra fingers.
+* No artificial body deformation.
+* No exaggerated curves.
+* No impossible waist-to-hip ratio.
+* No mannequin appearance.
+* No CGI/rendered appearance.
+* No Caucasian/white-looking model.
+* No extremely skinny model.
+
+FINAL GOAL:
+Create a premium, photorealistic Nigerian women's fashion ecommerce product image that looks comparable to professional international fashion retail photography, while maintaining an authentic Nigerian model, realistic Nigerian skin tone, natural curvy body type, and the exact original garment from the reference image.

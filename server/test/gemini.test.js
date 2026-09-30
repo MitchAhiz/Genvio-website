@@ -1,0 +1,626 @@
+// Integration tests for the two Gemini-backed /upload routes
+// (server/src/routes/upload.js POST /admin/upload/generate-card and
+// POST /admin/upload/suggest, server/src/services/gemini.js).
+//
+// '@google/genai' and '@supabase/supabase-js' are both swapped for
+// in-memory fakes before the router is required, so no real Gemini or
+// Storage call is ever made — same require.cache-swap pattern as
+// test/productImageStorage.test.js. The router is mounted on a real
+// Express app with the real requireAdminAuth + requireCsrf, driven over
+// HTTP, same pattern as test/csrf.test.js's Tier 2.
+
+const { test, beforeEach, afterEach } = require('node:test')
+const assert = require('node:assert/strict')
+const express = require('express')
+const cookieParser = require('cookie-parser')
+
+process.env.SUPABASE_URL = 'https://project-ref.supabase.co'
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'fake-service-role-key'
+process.env.PRODUCT_IMAGES_BUCKET = 'product-images'
+process.env.NODE_ENV = 'test' // keeps cookies non-Secure/SameSite=lax so plain fetch can carry them
+delete process.env.GEMINI_API_KEY // default unset — tests that need it set it explicitly
+process.env.AI_CARD_GENERATION_ENABLED = 'true' // the flag-off 503 path gets its own dedicated tests below
+
+const GOOD_URL = 'https://project-ref.supabase.co/storage/v1/object/public/product-images/raw/2026/09/abc.jpg'
+
+// ---------------------------------------------------------------------------
+// Fake @google/genai
+// ---------------------------------------------------------------------------
+
+let generateContentBehavior = async () => {
+  throw new Error('generateContentBehavior not set for this test')
+}
+let lastGenerateContentParams
+
+class FakeApiError extends Error {
+  constructor({ message, status }) {
+    super(message)
+    this.status = status
+  }
+}
+
+const fakeGenAiExports = {
+  GoogleGenAI: class {
+    // eslint-disable-next-line no-useless-constructor
+    constructor() {}
+    get models() {
+      return {
+        generateContent: (params) => {
+          lastGenerateContentParams = params
+          return generateContentBehavior(params)
+        },
+      }
+    }
+  },
+  ApiError: FakeApiError,
+  Type: { OBJECT: 'OBJECT', STRING: 'STRING', ARRAY: 'ARRAY' },
+}
+
+const genaiPath = require.resolve('@google/genai')
+require.cache[genaiPath] = { id: genaiPath, filename: genaiPath, loaded: true, exports: fakeGenAiExports }
+
+// ---------------------------------------------------------------------------
+// Fake @supabase/supabase-js (Storage upload target for generate-card)
+// ---------------------------------------------------------------------------
+
+let lastUploadedBucket
+let lastUploadedPath
+let lastUploadedBuffer
+
+function fakeSupabaseClient() {
+  return {
+    storage: {
+      from(bucket) {
+        return {
+          async upload(storagePath, buffer) {
+            lastUploadedBucket = bucket
+            lastUploadedPath = storagePath
+            lastUploadedBuffer = buffer
+            return { data: { path: storagePath }, error: null }
+          },
+          async createSignedUploadUrl(storagePath) {
+            return { data: { signedUrl: 'https://signed.example/x', path: storagePath, token: 'tok' }, error: null }
+          },
+          getPublicUrl(storagePath) {
+            return {
+              data: { publicUrl: `https://project-ref.supabase.co/storage/v1/object/public/${bucket}/${storagePath}` },
+            }
+          },
+        }
+      },
+    },
+  }
+}
+
+const supabaseJsPath = require.resolve('@supabase/supabase-js')
+require.cache[supabaseJsPath] = {
+  id: supabaseJsPath,
+  filename: supabaseJsPath,
+  loaded: true,
+  exports: { createClient: () => fakeSupabaseClient() },
+}
+
+// ---------------------------------------------------------------------------
+// Fake db (uploadProducts.js, required by upload.js, needs one to load)
+// ---------------------------------------------------------------------------
+
+const dbPath = require.resolve('../src/db')
+require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: {} }
+
+const uploadRouter = require('../src/routes/upload')
+const { createSession } = require('../src/services/auth')
+const { issueCsrfToken, COOKIE_NAME, HEADER_NAME } = require('../src/middleware/csrf')
+
+function fakeRes() {
+  return { cookie() {}, cookies: {} }
+}
+
+function authedHeaders() {
+  const sessionToken = createSession('exoticapparels0105@gmail.com')
+  const csrfToken = issueCsrfToken(fakeRes())
+  return {
+    'content-type': 'application/json',
+    cookie: `admin_session=${sessionToken}; ${COOKIE_NAME}=${csrfToken}`,
+    [HEADER_NAME]: csrfToken,
+  }
+}
+
+let server
+let baseUrl
+let originalFetch
+let fetchCalled
+let fetchShouldServe
+let fetchResponsesByUrl
+
+test.before(async () => {
+  const app = express()
+  app.use(express.json())
+  app.use(cookieParser())
+  app.use('/api', uploadRouter)
+  server = app.listen(0)
+  await new Promise((resolve) => server.once('listening', resolve))
+  baseUrl = `http://127.0.0.1:${server.address().port}`
+})
+
+test.after(async () => {
+  await new Promise((resolve) => server.close(resolve))
+})
+
+beforeEach(() => {
+  lastUploadedBucket = undefined
+  lastUploadedPath = undefined
+  lastUploadedBuffer = undefined
+  lastGenerateContentParams = undefined
+  fetchCalled = false
+  fetchShouldServe = { buffer: Buffer.from('fake-source-image-bytes'), contentType: 'image/jpeg' }
+  fetchResponsesByUrl = new Map() // url -> { buffer, contentType }, overrides fetchShouldServe for that exact URL
+  generateContentBehavior = async () => {
+    throw new Error('generateContentBehavior not set for this test')
+  }
+
+  // The route under test calls the real global `fetch` to fetch source
+  // images; the test itself also uses `fetch` to call the server over
+  // loopback HTTP. Distinguish by URL so only the route's outbound
+  // "fetch a supposed image URL" calls are faked.
+  originalFetch = global.fetch
+  global.fetch = async (url, opts) => {
+    const urlStr = typeof url === 'string' ? url : url.url
+    if (urlStr.startsWith(baseUrl)) return originalFetch(url, opts)
+    fetchCalled = true
+    const served = fetchResponsesByUrl.get(urlStr) || fetchShouldServe
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => served.contentType },
+      async arrayBuffer() {
+        return served.buffer.buffer.slice(served.buffer.byteOffset, served.buffer.byteOffset + served.buffer.byteLength)
+      },
+    }
+  }
+})
+
+afterEach(() => {
+  global.fetch = originalFetch
+})
+
+// ---------------------------------------------------------------------------
+// 1. Missing GEMINI_API_KEY -> 503, never crashes
+// ---------------------------------------------------------------------------
+
+test('generate-card: missing GEMINI_API_KEY returns 503, never crashes', async () => {
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
+  })
+  assert.equal(res.status, 503)
+  const body = await res.json()
+  assert.equal(body.error, "AI features aren't set up yet")
+  assert.equal(fetchCalled, false)
+})
+
+test('suggest: missing GEMINI_API_KEY returns 503, never crashes', async () => {
+  const res = await fetch(`${baseUrl}/api/admin/upload/suggest`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ imageUrl: GOOD_URL }),
+  })
+  assert.equal(res.status, 503)
+  const body = await res.json()
+  assert.equal(body.error, "AI features aren't set up yet")
+  assert.equal(fetchCalled, false)
+})
+
+// ---------------------------------------------------------------------------
+// 2. Non-bucket URL is rejected before any fetch
+// ---------------------------------------------------------------------------
+
+test('generate-card: a non-bucket sourceUrl is rejected before any fetch is made', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: 'https://evil.example.com/x.jpg', view: 'front' }),
+  })
+  assert.equal(res.status, 400)
+  assert.equal(fetchCalled, false)
+})
+
+test('suggest: a non-bucket imageUrl is rejected before any fetch is made', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const res = await fetch(`${baseUrl}/api/admin/upload/suggest`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ imageUrl: 'https://evil.example.com/x.jpg' }),
+  })
+  assert.equal(res.status, 400)
+  assert.equal(fetchCalled, false)
+})
+
+// ---------------------------------------------------------------------------
+// 3. A quota error becomes 429 with the friendly message
+// ---------------------------------------------------------------------------
+
+test('generate-card: a Gemini quota error becomes 429 with the friendly message', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  generateContentBehavior = async () => {
+    throw new FakeApiError({ message: 'RESOURCE_EXHAUSTED: quota exceeded', status: 429 })
+  }
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
+  })
+  assert.equal(res.status, 429)
+  const body = await res.json()
+  assert.equal(body.error, 'Image generation is temporarily unavailable, try again shortly')
+})
+
+test('suggest: a Gemini quota error becomes 429 with the friendly message', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  generateContentBehavior = async () => {
+    throw new FakeApiError({ message: 'RESOURCE_EXHAUSTED: quota exceeded', status: 429 })
+  }
+  const res = await fetch(`${baseUrl}/api/admin/upload/suggest`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ imageUrl: GOOD_URL }),
+  })
+  assert.equal(res.status, 429)
+  const body = await res.json()
+  assert.equal(body.error, 'Image generation is temporarily unavailable, try again shortly')
+})
+
+// ---------------------------------------------------------------------------
+// 4. Suggestion output sanitised and length-capped
+// ---------------------------------------------------------------------------
+
+test('suggest: output is trimmed, control chars/quotes stripped, and length-capped', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  generateContentBehavior = async () => ({
+    text: JSON.stringify({
+      colourName: '  "Burg\u0007undy\'  ' + 'x'.repeat(40),
+      garmentDescription: '`Linen  Wrap   Dress`' + ' extra padding'.repeat(10),
+    }),
+  })
+  const res = await fetch(`${baseUrl}/api/admin/upload/suggest`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ imageUrl: GOOD_URL }),
+  })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.ok(body.colourName.length <= 30, `colourName too long: ${body.colourName.length}`)
+  assert.ok(!/["'`]/.test(body.colourName))
+  assert.ok(!/[\u0000-\u001F]/.test(body.colourName))
+  assert.ok(body.garmentDescription.length <= 60, `garmentDescription too long: ${body.garmentDescription.length}`)
+  assert.ok(!/["'`]/.test(body.garmentDescription))
+})
+
+// ---------------------------------------------------------------------------
+// 5. Unusable output -> empty strings, not an error
+// ---------------------------------------------------------------------------
+
+test('suggest: unparseable model output returns empty strings, not an error', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  generateContentBehavior = async () => ({ text: 'not valid json at all' })
+  const res = await fetch(`${baseUrl}/api/admin/upload/suggest`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ imageUrl: GOOD_URL }),
+  })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.colourName, '')
+  assert.equal(body.garmentDescription, '')
+})
+
+test('suggest: non-string fields in an otherwise-valid JSON response become empty strings', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  generateContentBehavior = async () => ({ text: JSON.stringify({ colourName: 42, garmentDescription: null }) })
+  const res = await fetch(`${baseUrl}/api/admin/upload/suggest`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ imageUrl: GOOD_URL }),
+  })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.colourName, '')
+  assert.equal(body.garmentDescription, '')
+})
+
+// ---------------------------------------------------------------------------
+// 6. Generated card is uploaded under card/
+// ---------------------------------------------------------------------------
+
+test('generate-card: the generated image is uploaded under card/ with provenance ai-generated', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const fakeImageBytes = Buffer.from('fake-generated-png-bytes')
+  generateContentBehavior = async () => ({
+    candidates: [
+      {
+        content: {
+          parts: [{ inlineData: { data: fakeImageBytes.toString('base64'), mimeType: 'image/png' } }],
+        },
+      },
+    ],
+  })
+
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
+  })
+
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.provenance, 'ai-generated')
+  assert.match(lastUploadedPath, /^card\/\d{4}\/\d{2}\/[0-9a-f-]{36}\.png$/)
+  assert.equal(lastUploadedBucket, 'product-images')
+  assert.ok(body.url.startsWith('https://project-ref.supabase.co/storage/v1/object/public/product-images/card/'))
+  assert.equal(Buffer.compare(Buffer.from(lastUploadedBuffer), fakeImageBytes), 0)
+  assert.equal(fetchCalled, true) // the source photo WAS fetched, since sourceUrl passed the bucket check
+})
+
+// ---------------------------------------------------------------------------
+// Front sends one image; back sends two in the right order
+// ---------------------------------------------------------------------------
+
+test('generate-card front: sends exactly one image part, after the prompt text', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const fakeImageBytes = Buffer.from('fake-generated-png-bytes')
+  generateContentBehavior = async () => ({
+    candidates: [{ content: { parts: [{ inlineData: { data: fakeImageBytes.toString('base64'), mimeType: 'image/png' } }] } }],
+  })
+
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
+  })
+
+  assert.equal(res.status, 200)
+  const parts = lastGenerateContentParams.contents[0].parts
+  assert.equal(parts.length, 2) // [prompt text, 1 image]
+  assert.equal(typeof parts[0].text, 'string')
+  assert.ok(parts[0].text.length > 0)
+  assert.ok(parts[1].inlineData)
+})
+
+test('generate-card back: sends the back photo as IMAGE 1 and the approved front card as IMAGE 2, in that order', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const frontCardUrl = 'https://project-ref.supabase.co/storage/v1/object/public/product-images/card/2026/09/front-card.png'
+  const backPhotoBytes = Buffer.from('back-photo-bytes')
+  const frontCardBytes = Buffer.from('front-card-bytes')
+  fetchResponsesByUrl.set(GOOD_URL, { buffer: backPhotoBytes, contentType: 'image/jpeg' })
+  fetchResponsesByUrl.set(frontCardUrl, { buffer: frontCardBytes, contentType: 'image/png' })
+
+  const fakeImageBytes = Buffer.from('fake-generated-back-png-bytes')
+  generateContentBehavior = async () => ({
+    candidates: [{ content: { parts: [{ inlineData: { data: fakeImageBytes.toString('base64'), mimeType: 'image/png' } }] } }],
+  })
+
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'back', frontCardUrl }),
+  })
+
+  assert.equal(res.status, 200)
+  const parts = lastGenerateContentParams.contents[0].parts
+  assert.equal(parts.length, 3) // [prompt text, IMAGE 1, IMAGE 2]
+  assert.equal(Buffer.from(parts[1].inlineData.data, 'base64').toString(), 'back-photo-bytes') // IMAGE 1 = sourceUrl
+  assert.equal(Buffer.from(parts[2].inlineData.data, 'base64').toString(), 'front-card-bytes') // IMAGE 2 = frontCardUrl
+})
+
+// ---------------------------------------------------------------------------
+// Back view validation
+// ---------------------------------------------------------------------------
+
+test('generate-card back: rejected without frontCardUrl', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'back' }),
+  })
+  assert.equal(res.status, 400)
+  const body = await res.json()
+  assert.equal(body.error, 'Generate and approve the front card first.')
+  assert.equal(fetchCalled, false) // rejected before fetching anything
+})
+
+test('generate-card back: rejected when frontCardUrl is outside card/', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({
+      sourceUrl: GOOD_URL,
+      view: 'back',
+      frontCardUrl: 'https://project-ref.supabase.co/storage/v1/object/public/product-images/raw/2026/09/not-a-card.jpg',
+    }),
+  })
+  assert.equal(res.status, 400)
+  const body = await res.json()
+  assert.equal(body.error, 'Generate and approve the front card first.')
+})
+
+test('generate-card back: rejected when frontCardUrl is on the right host/bucket but not under card/', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({
+      sourceUrl: GOOD_URL,
+      view: 'back',
+      frontCardUrl: 'https://evil.example.com/storage/v1/object/public/product-images/card/x.jpg',
+    }),
+  })
+  assert.equal(res.status, 400)
+})
+
+test('generate-card: an invalid view value is rejected', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'side' }),
+  })
+  assert.equal(res.status, 400)
+  const body = await res.json()
+  assert.match(body.error, /view must be/)
+  assert.equal(fetchCalled, false)
+})
+
+test('generate-card: a response with no image part is treated as a failure, not a crash', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  generateContentBehavior = async () => ({ candidates: [{ content: { parts: [{ text: 'no image here' }] } }] })
+
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
+  })
+
+  assert.equal(res.status, 500)
+})
+
+// ---------------------------------------------------------------------------
+// AI_CARD_GENERATION_ENABLED feature switch
+// ---------------------------------------------------------------------------
+
+test('generate-card: the feature flag off returns 503 AI_CARDS_DISABLED without calling Gemini, even with a key configured', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const previous = process.env.AI_CARD_GENERATION_ENABLED
+  process.env.AI_CARD_GENERATION_ENABLED = 'false'
+  try {
+    const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+      method: 'POST',
+      headers: authedHeaders(),
+      body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
+    })
+    assert.equal(res.status, 503)
+    const body = await res.json()
+    assert.equal(body.error, "AI card generation isn't switched on. Use 'Use a card I already have' instead.")
+    assert.equal(body.code, 'AI_CARDS_DISABLED')
+    assert.equal(fetchCalled, false)
+  } finally {
+    process.env.AI_CARD_GENERATION_ENABLED = previous
+  }
+})
+
+test('generate-card: missing the env var entirely (not just "false") also disables it — defaults to off', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const previous = process.env.AI_CARD_GENERATION_ENABLED
+  delete process.env.AI_CARD_GENERATION_ENABLED
+  try {
+    const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+      method: 'POST',
+      headers: authedHeaders(),
+      body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
+    })
+    assert.equal(res.status, 503)
+    const body = await res.json()
+    assert.equal(body.code, 'AI_CARDS_DISABLED')
+  } finally {
+    process.env.AI_CARD_GENERATION_ENABLED = previous
+  }
+})
+
+test('suggest: is unaffected by AI_CARD_GENERATION_ENABLED being off', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  const previous = process.env.AI_CARD_GENERATION_ENABLED
+  process.env.AI_CARD_GENERATION_ENABLED = 'false'
+  generateContentBehavior = async () => ({ text: JSON.stringify({ colourName: 'Burgundy', garmentDescription: 'Wrap Dress' }) })
+  try {
+    const res = await fetch(`${baseUrl}/api/admin/upload/suggest`, {
+      method: 'POST',
+      headers: authedHeaders(),
+      body: JSON.stringify({ imageUrl: GOOD_URL }),
+    })
+    assert.equal(res.status, 200)
+    const body = await res.json()
+    assert.equal(body.colourName, 'Burgundy')
+  } finally {
+    process.env.AI_CARD_GENERATION_ENABLED = previous
+  }
+})
+
+// ---------------------------------------------------------------------------
+// GET /admin/upload/capabilities
+// ---------------------------------------------------------------------------
+
+test('capabilities: reports aiCards from the flag and aiSuggestions from key presence', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  process.env.AI_CARD_GENERATION_ENABLED = 'true'
+  const res = await fetch(`${baseUrl}/api/admin/upload/capabilities`, { headers: authedHeaders() })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.aiCards, true)
+  assert.equal(body.aiSuggestions, true)
+})
+
+test('capabilities: aiCards false and aiSuggestions false when both are off/unset', async () => {
+  const previousFlag = process.env.AI_CARD_GENERATION_ENABLED
+  const previousKey = process.env.GEMINI_API_KEY
+  process.env.AI_CARD_GENERATION_ENABLED = 'false'
+  delete process.env.GEMINI_API_KEY
+  try {
+    const res = await fetch(`${baseUrl}/api/admin/upload/capabilities`, { headers: authedHeaders() })
+    assert.equal(res.status, 200)
+    const body = await res.json()
+    assert.equal(body.aiCards, false)
+    assert.equal(body.aiSuggestions, false)
+  } finally {
+    process.env.AI_CARD_GENERATION_ENABLED = previousFlag
+    process.env.GEMINI_API_KEY = previousKey
+  }
+})
+
+test('capabilities: requires admin auth', async () => {
+  const res = await fetch(`${baseUrl}/api/admin/upload/capabilities`)
+  assert.equal(res.status, 401)
+})
+
+// ---------------------------------------------------------------------------
+// Error mapping: limit:0 -> 503 AI_CARDS_DISABLED, real quota -> 429
+// ---------------------------------------------------------------------------
+
+test('generate-card: a 429 reporting "limit: 0" is mapped to 503 AI_CARDS_DISABLED, not the 429 quota message', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  generateContentBehavior = async () => {
+    throw new FakeApiError({
+      message:
+        'RESOURCE_EXHAUSTED: {"error":{"code":429,"message":"Quota exceeded for metric: generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image"}}',
+      status: 429,
+    })
+  }
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
+  })
+  assert.equal(res.status, 503)
+  const body = await res.json()
+  assert.equal(body.error, "AI card generation isn't switched on. Use 'Use a card I already have' instead.")
+  assert.equal(body.code, 'AI_CARDS_DISABLED')
+})
+
+test('generate-card: a real (non-zero-limit) 429 still gets the friendly try-again message', async () => {
+  process.env.GEMINI_API_KEY = 'fake-key'
+  generateContentBehavior = async () => {
+    throw new FakeApiError({
+      message: 'RESOURCE_EXHAUSTED: Quota exceeded for metric: requests_per_minute, limit: 60, please retry in 5s',
+      status: 429,
+    })
+  }
+  const res = await fetch(`${baseUrl}/api/admin/upload/generate-card`, {
+    method: 'POST',
+    headers: authedHeaders(),
+    body: JSON.stringify({ sourceUrl: GOOD_URL, view: 'front' }),
+  })
+  assert.equal(res.status, 429)
+  const body = await res.json()
+  assert.equal(body.error, 'Image generation is temporarily unavailable, try again shortly')
+})

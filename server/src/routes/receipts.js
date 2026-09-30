@@ -2,6 +2,7 @@ const { Router } = require('express')
 const multer = require('multer')
 const prisma = require('../db')
 const { requireAdminAuth } = require('../middleware/auth')
+const { requireCsrf } = require('../middleware/csrf')
 const { rateLimit } = require('../middleware/rateLimit')
 const { cleanText } = require('../utils/sanitize')
 const { validateReceiptFile, MAX_BYTES } = require('../utils/fileValidation')
@@ -175,7 +176,7 @@ router.get('/admin/orders/:id/receipts', requireAdminAuth, async (req, res, next
 
 // Admin: verify the transfer landed in the bank account, then confirm.
 // Idempotent — confirming an already-confirmed order just returns it.
-router.post('/admin/orders/:id/confirm', requireAdminAuth, async (req, res, next) => {
+router.post('/admin/orders/:id/confirm', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const result = await confirmOrder(req.params.id, req.adminEmail)
     if (!result.ok) return res.status(result.status).json({ error: result.error })
@@ -191,7 +192,7 @@ router.post('/admin/orders/:id/confirm', requireAdminAuth, async (req, res, next
 
 // Admin: reject with a reason. Releases the reservation; a new upload on
 // this order (see UPLOADABLE_STATUSES) re-attempts it.
-router.post('/admin/orders/:id/reject', requireAdminAuth, async (req, res, next) => {
+router.post('/admin/orders/:id/reject', requireAdminAuth, requireCsrf, async (req, res, next) => {
   try {
     const reason = cleanText(req.body?.reason, 500)
     if (!reason) return res.status(400).json({ error: 'A rejection reason is required' })

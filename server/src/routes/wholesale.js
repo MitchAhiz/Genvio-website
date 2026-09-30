@@ -10,8 +10,20 @@ const {
   deleteWholesaleCategory,
 } = require('../services/wholesale')
 const { requireAdminAuth } = require('../middleware/auth')
+const { requireCsrf } = require('../middleware/csrf')
+const { rateLimit } = require('../middleware/rateLimit')
 
 const router = Router()
+
+// Same 60/10min-per-staff-account pattern as categories.js/subcategories.js
+// — managing the lookbook (images + categories) is a comparable interactive
+// editing cadence, not a rare config-style write.
+const writeLimit = rateLimit({
+  name: 'wholesale-write',
+  limit: 60,
+  windowMs: 10 * 60 * 1000,
+  key: (req) => req.adminEmail,
+})
 
 // Public: the lookbook is browsable by anyone with the link.
 router.get('/wholesale', async (req, res, next) => {
@@ -33,7 +45,7 @@ router.get('/wholesale/categories', async (_req, res, next) => {
 })
 
 // Admin-only writes.
-router.post('/wholesale', requireAdminAuth, async (req, res, next) => {
+router.post('/wholesale', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const { url, caption, category } = req.body
     if (!url || typeof url !== 'string' || !/^https?:\/\//i.test(url.trim())) {
@@ -46,7 +58,7 @@ router.post('/wholesale', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.delete('/wholesale/:id', requireAdminAuth, async (req, res, next) => {
+router.delete('/wholesale/:id', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const result = await deleteWholesaleImage(req.params.id)
     if (!result.ok) return res.status(404).json({ error: result.error })
@@ -57,7 +69,7 @@ router.delete('/wholesale/:id', requireAdminAuth, async (req, res, next) => {
 })
 
 // Registered before /wholesale/:id so "reorder" isn't captured as an id.
-router.patch('/wholesale/reorder', requireAdminAuth, async (req, res, next) => {
+router.patch('/wholesale/reorder', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const { orderedIds } = req.body
     const result = await reorderWholesaleImages(orderedIds)
@@ -68,7 +80,7 @@ router.patch('/wholesale/reorder', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.patch('/wholesale/:id', requireAdminAuth, async (req, res, next) => {
+router.patch('/wholesale/:id', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const { url, caption, category } = req.body
     if (url !== undefined && (typeof url !== 'string' || !/^https?:\/\//i.test(url.trim()))) {
@@ -86,7 +98,7 @@ router.patch('/wholesale/:id', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.patch('/wholesale/categories/:name', requireAdminAuth, async (req, res, next) => {
+router.patch('/wholesale/categories/:name', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const { name } = req.body
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -100,7 +112,7 @@ router.patch('/wholesale/categories/:name', requireAdminAuth, async (req, res, n
   }
 })
 
-router.delete('/wholesale/categories/:name', requireAdminAuth, async (req, res, next) => {
+router.delete('/wholesale/categories/:name', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const { action, reassignTo } = req.body || {}
     const result = await deleteWholesaleCategory(req.params.name, { action, reassignTo })

@@ -3,6 +3,7 @@ const {
   getProducts,
   getProductBySlug,
   getProductById,
+  searchUploadProducts,
   getCategories,
   getBrands,
   getInventory,
@@ -20,16 +21,53 @@ const {
 } = require('../services/products')
 
 const { requireAdminAuth } = require('../middleware/auth')
+const { requireCsrf } = require('../middleware/csrf')
+const { rateLimit } = require('../middleware/rateLimit')
 const { validateSession } = require('../services/auth')
 const { SECTIONS, isValidSection } = require('../constants')
 
 const router = Router()
+
+// Same 60/10min-per-staff-account pattern as categories.js/subcategories.js
+// — this is the highest-traffic admin write surface (product CRUD, bulk
+// actions, image management), so it gets the same cap as those rather than
+// sizeRanges.js's tighter 30/10min (that one's specifically for rarer
+// config-style writes).
+const writeLimit = rateLimit({
+  name: 'products-write',
+  limit: 60,
+  windowMs: 10 * 60 * 1000,
+  key: (req) => req.adminEmail,
+})
+
+// Keystroke-driven usage (product-upload-project.md §9 — search-as-you-type
+// hits the DB directly) needs a much looser cap than a write action, so this
+// is scoped separately from writeLimit rather than reusing its 60/10min.
+const uploadSearchLimit = rateLimit({
+  name: 'products-upload-search',
+  limit: 100,
+  windowMs: 60 * 1000,
+  key: (req) => req.adminEmail,
+})
 
 function sectionError(res) {
   return res.status(400).json({ error: `section must be one of: ${SECTIONS.join(', ')}` })
 }
 
 // --- Read endpoints ---
+
+// Staff-only search used before the upload flow creates or restocks a product.
+// Includes draft products so an unfinished product cannot be duplicated.
+router.get('/admin/upload/products', requireAdminAuth, uploadSearchLimit, async (req, res, next) => {
+  try {
+    const query = typeof req.query.q === 'string' ? req.query.q.trim() : ''
+    if (query.length > 100) return res.status(400).json({ error: 'Search text must be 100 characters or fewer' })
+    res.set('Cache-Control', 'no-store')
+    res.json(await searchUploadProducts(query))
+  } catch (err) {
+    next(err)
+  }
+})
 
 // GET /api/products?section=women&category=Tops
 // `all=1` includes drafts, but only for a signed-in admin.
@@ -91,7 +129,7 @@ router.get('/inventory/:productId', async (req, res, next) => {
 
 // --- Write endpoints (require admin auth) ---
 
-router.post('/products', requireAdminAuth, async (req, res, next) => {
+router.post('/products', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const { slug, name, brand, categoryId, price, section } = req.body
     if (!slug || !name || !brand || !categoryId || price == null) {
@@ -101,14 +139,15 @@ router.post('/products', requireAdminAuth, async (req, res, next) => {
       return res.status(400).json({ error: 'Price must be a positive number' })
     }
     if (section !== undefined && !isValidSection(section)) return sectionError(res)
-    const product = await createProduct({ slug, name, brand, categoryId, price, section })
-    res.status(201).json(product)
+    const result = await createProduct({ slug, name, brand, categoryId, price, section })
+    if (!result.ok) return res.status(400).json({ error: result.error })
+    res.status(201).json(result.product)
   } catch (err) {
     next(err)
   }
 })
 
-router.patch('/products/:id', requireAdminAuth, async (req, res, next) => {
+router.patch('/products/:id', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const existing = await getProductById(req.params.id)
     if (!existing) return res.status(404).json({ error: 'Product not found' })
@@ -129,7 +168,7 @@ router.patch('/products/:id', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.post('/products/bulk', requireAdminAuth, async (req, res, next) => {
+router.post('/products/bulk', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const { ids, action } = req.body
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -145,7 +184,7 @@ router.post('/products/bulk', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.post('/products/:id/unpublish', requireAdminAuth, async (req, res, next) => {
+router.post('/products/:id/unpublish', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const result = await unpublishProduct(req.params.id)
     if (!result.ok) return res.status(404).json({ error: result.error })
@@ -155,7 +194,7 @@ router.post('/products/:id/unpublish', requireAdminAuth, async (req, res, next) 
   }
 })
 
-router.patch('/products/:id/images/reorder', requireAdminAuth, async (req, res, next) => {
+router.patch('/products/:id/images/reorder', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const existing = await getProductById(req.params.id)
     if (!existing) return res.status(404).json({ error: 'Product not found' })
@@ -170,7 +209,7 @@ router.patch('/products/:id/images/reorder', requireAdminAuth, async (req, res, 
   }
 })
 
-router.post('/products/:id/images', requireAdminAuth, async (req, res, next) => {
+router.post('/products/:id/images', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const existing = await getProductById(req.params.id)
     if (!existing) return res.status(404).json({ error: 'Product not found' })
@@ -179,6 +218,12 @@ router.post('/products/:id/images', requireAdminAuth, async (req, res, next) => 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return res.status(400).json({ error: 'Provide { urls: ["..."] } with at least one URL' })
     }
+    // Same http(s)-only check as wholesale.js's image URLs — closes the gap
+    // before the planned Gemini pipeline starts feeding URLs into this same
+    // code path.
+    if (!urls.every((u) => typeof u === 'string' && /^https?:\/\//i.test(u.trim()))) {
+      return res.status(400).json({ error: 'Each URL must start with http:// or https://' })
+    }
     const images = await addImages(req.params.id, urls)
     res.status(201).json(images)
   } catch (err) {
@@ -186,7 +231,7 @@ router.post('/products/:id/images', requireAdminAuth, async (req, res, next) => 
   }
 })
 
-router.post('/products/:id/publish', requireAdminAuth, async (req, res, next) => {
+router.post('/products/:id/publish', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const result = await publishProduct(req.params.id)
     if (!result.ok) {
@@ -199,7 +244,7 @@ router.post('/products/:id/publish', requireAdminAuth, async (req, res, next) =>
   }
 })
 
-router.delete('/products/:id', requireAdminAuth, async (req, res, next) => {
+router.delete('/products/:id', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const result = await deleteProduct(req.params.id)
     if (!result.ok) {
@@ -212,7 +257,7 @@ router.delete('/products/:id', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.delete('/images/:id', requireAdminAuth, async (req, res, next) => {
+router.delete('/images/:id', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const result = await deleteImage(req.params.id)
     if (!result.ok) return res.status(404).json({ error: result.error })
@@ -222,7 +267,7 @@ router.delete('/images/:id', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.delete('/variants/:id', requireAdminAuth, async (req, res, next) => {
+router.delete('/variants/:id', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const result = await deleteVariant(req.params.id)
     if (!result.ok) return res.status(404).json({ error: result.error })
@@ -232,7 +277,7 @@ router.delete('/variants/:id', requireAdminAuth, async (req, res, next) => {
   }
 })
 
-router.delete('/variants/:variantId/sizes/:sizeId', requireAdminAuth, async (req, res, next) => {
+router.delete('/variants/:variantId/sizes/:sizeId', requireAdminAuth, requireCsrf, writeLimit, async (req, res, next) => {
   try {
     const result = await deleteVariantSize(req.params.sizeId)
     if (!result.ok) return res.status(404).json({ error: result.error })

@@ -24,6 +24,7 @@ export function del(path, body) {
 // --- Products ---
 
 export const getAdminProducts = (params) => get('/api/products', { ...params, all: '1' })
+export const searchUploadProducts = (q) => get('/api/admin/upload/products', { q })
 export const createProduct = (data) => post('/api/products', data)
 export const updateProduct = (id, data) => patch(`/api/products/${id}`, data)
 export const deleteProduct = (id) => del(`/api/products/${id}`)
@@ -42,6 +43,21 @@ export const createCategory = (name, section) => post('/api/admin/categories', {
 export const updateCategory = (id, name) => patch(`/api/admin/categories/${id}`, { name })
 export const deleteCategory = (id, action, reassignTo) => del(`/api/admin/categories/${id}`, { action, reassignTo })
 export const getCategoryProductCount = (id) => get(`/api/admin/categories/${id}/product-count`)
+
+// --- Subcategories ---
+
+export const getSubcategories = (categoryId) => get('/api/admin/subcategories', { categoryId })
+export const createSubcategory = (categoryId, name) => post('/api/admin/subcategories', { categoryId, name })
+export const updateSubcategory = (id, name) => patch(`/api/admin/subcategories/${id}`, { name })
+export const deleteSubcategory = (id, action, reassignTo) => del(`/api/admin/subcategories/${id}`, { action, reassignTo })
+export const getSubcategoryProductCount = (id) => get(`/api/admin/subcategories/${id}/product-count`)
+
+// --- Size ranges ---
+
+export const getSizeRange = (categoryId, subcategoryId) =>
+  get('/api/admin/size-ranges', { category: categoryId, subcategory: subcategoryId })
+export const saveSizeRange = (categoryId, subcategoryId, sizes) =>
+  apiFetch('/api/admin/size-ranges', jsonOptions('PUT', { categoryId, subcategoryId, sizes }))
 
 // --- Brands ---
 
@@ -85,6 +101,17 @@ export const getAllConfig = () => get('/api/config/all')
 export const updateConfig = (data) => patch('/api/config', data)
 export const getActivityLog = (page, search) => get('/api/activity', { page, search })
 export const getConfigHistory = (keys, limit) => get('/api/config/history', { keys: keys?.join(','), limit })
+
+// --- Upload flow (staff /upload page) ---
+// searchUploadProducts is already defined above under Products.
+
+export const getUploadCapabilities = () => get('/api/admin/upload/capabilities')
+export const signUpload = (kind, contentType) => post('/api/admin/upload/sign', { kind, contentType })
+export const generateCard = (sourceUrl, view, frontCardUrl) =>
+  post('/api/admin/upload/generate-card', { sourceUrl, view, frontCardUrl })
+export const suggestUploadField = (imageUrl) => post('/api/admin/upload/suggest', { imageUrl })
+export const createUploadProduct = (data) => post('/api/admin/upload/products', data)
+export const restockUploadColour = (variantId, sizes) => post('/api/admin/upload/restock', { variantId, sizes })
 
 // --- Session & Auth ---
 // Reuses the same endpoints the OTP login flow already calls

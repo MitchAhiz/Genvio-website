@@ -38,6 +38,40 @@ async function getProductById(id) {
   })
 }
 
+// Upload-flow dedup lookup. Query the database directly so the staff page
+// never needs to load the catalogue, and include drafts because an existing
+// unfinished product must not be mistaken for a new one.
+async function searchUploadProducts(query) {
+  const term = String(query || '').trim()
+  if (term.length < 2) return []
+
+  const products = await prisma.product.findMany({
+    where: { name: { contains: term, mode: 'insensitive' } },
+    select: {
+      id: true,
+      name: true,
+      brand: true,
+      slug: true,
+      price: true,
+      section: true,
+      status: true,
+      category: { select: { id: true, name: true } },
+      subcategory: { select: { id: true, name: true } },
+      variants: {
+        select: {
+          id: true,
+          colour: true,
+          imageUrl: true,
+          sizes: { select: { id: true, size: true, quantity: true, reservedQuantity: true } },
+        },
+      },
+    },
+    orderBy: { name: 'asc' },
+    take: 10,
+  })
+  return products
+}
+
 async function getCategories({ section } = {}) {
   const where = { status: 'published', categoryId: { not: null } }
   if (section) where.section = section
@@ -94,71 +128,106 @@ async function resolveUniqueSlug(baseSlug) {
   }
 }
 
+// categoryId comes straight from the client on both create and update; the
+// DB foreign key (products_category_id_fkey) would eventually reject a bad
+// id anyway, but only as an unhandled 500 — checked here first so a
+// mistyped/stale id gets a clean 400 instead, same pattern as
+// subcategories.js's categoryExists() / sizeRanges.js's validScope().
+async function categoryExists(categoryId) {
+  return Boolean(await prisma.category.findUnique({ where: { id: categoryId }, select: { id: true } }))
+}
+
 async function createProduct({ slug, name, brand, categoryId, price, section = 'women' }) {
+  if (categoryId && !(await categoryExists(categoryId))) {
+    return { ok: false, error: 'categoryId is not a valid category' }
+  }
   const uniqueSlug = await resolveUniqueSlug(slug)
-  return prisma.product.create({
+  const product = await prisma.product.create({
     data: { slug: uniqueSlug, name, brand, categoryId, price, section, status: 'draft' },
     include: productWithRelations,
   })
+  return { ok: true, product }
 }
 
+// Thrown inside the updateProduct transaction to reject a reserved-stock
+// violation, or an invalid categoryId, without leaking a raw Prisma/
+// transaction error to the caller.
+class UpdateProductError extends Error {}
+
 async function updateProduct(id, { name, brand, price, section, categoryId, status, variants }) {
-  await prisma.$transaction(async (tx) => {
-    const updates = {}
-    if (name !== undefined) updates.name = name
-    if (brand !== undefined) updates.brand = brand
-    if (price !== undefined) updates.price = price
-    if (section !== undefined) updates.section = section
-    if (categoryId !== undefined) updates.categoryId = categoryId || null
-    if (status === 'draft') updates.status = 'draft'
-
-    if (Object.keys(updates).length > 0) {
-      await tx.product.update({ where: { id }, data: updates })
+  try {
+    if (categoryId && !(await categoryExists(categoryId))) {
+      throw new UpdateProductError('categoryId is not a valid category')
     }
+    await prisma.$transaction(async (tx) => {
+      const updates = {}
+      if (name !== undefined) updates.name = name
+      if (brand !== undefined) updates.brand = brand
+      if (price !== undefined) updates.price = price
+      if (section !== undefined) updates.section = section
+      if (categoryId !== undefined) updates.categoryId = categoryId || null
+      if (status === 'draft') updates.status = 'draft'
 
-    if (variants && Array.isArray(variants)) {
-      for (const v of variants) {
-        if (v.id) {
-          const variantUpdates = {}
-          if (v.colour !== undefined) variantUpdates.colour = v.colour
-          if (v.imageUrl !== undefined) variantUpdates.imageUrl = v.imageUrl
-          if (Object.keys(variantUpdates).length > 0) {
-            await tx.productVariant.update({ where: { id: v.id }, data: variantUpdates })
-          }
-          if (v.sizes && Array.isArray(v.sizes)) {
-            for (const s of v.sizes) {
-              if (s.id) {
-                await tx.variantSize.update({
-                  where: { id: s.id },
-                  data: { size: s.size, quantity: s.quantity },
-                })
-              } else {
+      if (Object.keys(updates).length > 0) {
+        await tx.product.update({ where: { id }, data: updates })
+      }
+
+      if (variants && Array.isArray(variants)) {
+        for (const v of variants) {
+          if (v.id) {
+            const variantUpdates = {}
+            if (v.colour !== undefined) variantUpdates.colour = v.colour
+            if (v.imageUrl !== undefined) variantUpdates.imageUrl = v.imageUrl
+            if (Object.keys(variantUpdates).length > 0) {
+              await tx.productVariant.update({ where: { id: v.id }, data: variantUpdates })
+            }
+            if (v.sizes && Array.isArray(v.sizes)) {
+              for (const s of v.sizes) {
+                if (s.id) {
+                  const current = await tx.variantSize.findUnique({
+                    where: { id: s.id },
+                    select: { size: true, reservedQuantity: true },
+                  })
+                  if (current && s.quantity < current.reservedQuantity) {
+                    throw new UpdateProductError(
+                      `Can't set quantity to ${s.quantity} for size ${current.size} — ${current.reservedQuantity} units are currently reserved by pending orders`
+                    )
+                  }
+                  await tx.variantSize.update({
+                    where: { id: s.id },
+                    data: { size: s.size, quantity: s.quantity },
+                  })
+                } else {
+                  await tx.variantSize.create({
+                    data: { variantId: v.id, size: s.size, quantity: s.quantity },
+                  })
+                }
+              }
+            }
+          } else {
+            const created = await tx.productVariant.create({
+              data: {
+                productId: id,
+                colour: v.colour,
+                imageUrl: v.imageUrl || null,
+              },
+            })
+            if (v.sizes && Array.isArray(v.sizes)) {
+              for (const s of v.sizes) {
                 await tx.variantSize.create({
-                  data: { variantId: v.id, size: s.size, quantity: s.quantity },
+                  data: { variantId: created.id, size: s.size, quantity: s.quantity },
                 })
               }
             }
           }
-        } else {
-          const created = await tx.productVariant.create({
-            data: {
-              productId: id,
-              colour: v.colour,
-              imageUrl: v.imageUrl || null,
-            },
-          })
-          if (v.sizes && Array.isArray(v.sizes)) {
-            for (const s of v.sizes) {
-              await tx.variantSize.create({
-                data: { variantId: created.id, size: s.size, quantity: s.quantity },
-              })
-            }
-          }
         }
       }
-    }
 
-  })
+    })
+  } catch (err) {
+    if (err instanceof UpdateProductError) return { ok: false, error: err.message }
+    throw err
+  }
 
   if (status === 'published') {
     const result = await publishProduct(id)
@@ -289,6 +358,7 @@ module.exports = {
   getProducts,
   getProductBySlug,
   getProductById,
+  searchUploadProducts,
   getCategories,
   getBrands,
   getInventory,

@@ -15,15 +15,35 @@ export class ApiError extends Error {
   }
 }
 
+const WRITE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE'])
+
+// Double-submit CSRF: the server pairs admin_session with a second, readable
+// (non-httpOnly) csrf_token cookie on login (see server/src/middleware/csrf.js).
+// We read it back here and echo it as a header on every write request — a
+// cross-site page can trigger the request (cookies ride along automatically)
+// but can't read this cookie to forge the header, since cookies aren't
+// readable cross-origin.
+function readCsrfCookie() {
+  const match = document.cookie.match(/(?:^|; )csrf_token=([^;]*)/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 export async function apiFetch(path, options = {}) {
   if (USE_MOCK) {
     const { mockFetch } = await import('./mock')
     await new Promise((r) => setTimeout(r, 250))
     return mockFetch(path, options)
   }
+  const method = (options.method || 'GET').toUpperCase()
+  const headers = { ...options.headers }
+  if (WRITE_METHODS.has(method)) {
+    const csrfToken = readCsrfCookie()
+    if (csrfToken) headers['x-csrf-token'] = csrfToken
+  }
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     ...options,
+    headers,
   })
   if (!res.ok) {
     let message = `API error: ${res.status} ${res.statusText}`
