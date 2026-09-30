@@ -39,22 +39,23 @@ export default function DetailsStep({ capabilities, categoryId, cardImageUrl, lo
 
   const [suggestion, setSuggestion] = useState(null) // { colourName, garmentDescription }
   const [suggestError, setSuggestError] = useState('')
-  const [suggestedFor, setSuggestedFor] = useState(null) // brand string the current suggestion was fetched for
+  const [suggestLoading, setSuggestLoading] = useState(false)
 
   const effective = adoptedProduct || lockedProduct
   const isLocked = Boolean(effective)
 
-  // Fetch one suggestion per colour, only when a brand is chosen and the
-  // approved card image is available — never on every keystroke.
-  useEffect(() => {
-    if (isLocked || !aiSuggestions || !brandInput.trim() || !cardImageUrl) return
-    if (suggestedFor === brandInput.trim()) return
-    let cancelled = false
+  // Explicit, on-demand only — staff click "Suggest with AI" once brand +
+  // card image exist. Never fires automatically (on mount, keystroke, or
+  // re-render), so typing a brand can't spend suggest-endpoint calls.
+  const handleSuggest = () => {
+    if (isLocked || !aiSuggestions || !brandInput.trim() || !cardImageUrl || suggestLoading) return
+    setSuggestLoading(true)
+    setSuggestError('')
     suggestUploadField(cardImageUrl)
-      .then((data) => { if (!cancelled) { setSuggestion(data); setSuggestError(''); setSuggestedFor(brandInput.trim()) } })
-      .catch((err) => { if (!cancelled) { setSuggestError(describeSuggestError(err)); setSuggestedFor(brandInput.trim()) } })
-    return () => { cancelled = true }
-  }, [isLocked, aiSuggestions, brandInput, cardImageUrl, suggestedFor])
+      .then((data) => setSuggestion(data))
+      .catch((err) => setSuggestError(describeSuggestError(err)))
+      .finally(() => setSuggestLoading(false))
+  }
 
   const nameSuggestionText = suggestion ? `${brandInput.trim()} ${suggestion.garmentDescription}`.trim() : ''
 
@@ -168,9 +169,14 @@ export default function DetailsStep({ capabilities, categoryId, cardImageUrl, lo
                 ✨ {nameSuggestionText}
               </button>
             ) : (
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-400">
-                {brandInput.trim() ? 'Loading suggestion…' : '✨ Pick a brand first'}
-              </span>
+              <button
+                type="button"
+                onClick={handleSuggest}
+                disabled={!brandInput.trim() || !cardImageUrl || suggestLoading}
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 disabled:text-slate-400"
+              >
+                {suggestLoading ? 'Suggesting…' : '✨ Suggest name & colour with AI'}
+              </button>
             )}
             {suggestError && <p className="mt-1 text-xs text-amber-600">{suggestError}</p>}
           </div>
