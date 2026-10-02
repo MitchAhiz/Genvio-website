@@ -54,7 +54,11 @@ export default function ProductPage() {
 
   const variant = product.variants.find((v) => v.colour === selectedColour)
   const sizes = variant ? Object.entries(variant.sizes) : []
-  const images = variant ? [variant.image, ...product.images.filter((img) => img !== variant.image)] : product.images
+  const images = variant
+    ? (variant.images?.length > 1
+        ? variant.images
+        : [variant.image, ...product.images.filter((img) => img !== variant.image)])
+    : product.images
 
   const setQty = (size, val) => {
     const max = variant.sizes[size]

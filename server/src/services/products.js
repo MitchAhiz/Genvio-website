@@ -4,7 +4,7 @@ const { logActivity } = require('../utils/logActivity')
 const productWithRelations = {
   images: { orderBy: { sortOrder: 'asc' } },
   variants: {
-    include: { sizes: true },
+    include: { sizes: true, images: { orderBy: { sortOrder: 'asc' } } },
   },
   category: true,
 }

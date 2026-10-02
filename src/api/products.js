@@ -1,5 +1,15 @@
 import { apiFetch, withQuery } from './client'
 
+// Uploaded products keep their gallery on the variant (VariantImage rows,
+// sortOrder 0 first), and sortOrder 0 is also copied to variant.imageUrl —
+// so lead with imageUrl and drop the duplicate.
+function variantImages(v) {
+  if (!v) return []
+  const urls = (v.images || []).map((img) => img.url)
+  const all = v.imageUrl ? [v.imageUrl, ...urls] : urls
+  return [...new Set(all)]
+}
+
 function transformProduct(p) {
   return {
     id: p.id,
@@ -10,13 +20,12 @@ function transformProduct(p) {
     section: p.section || 'women',
     price: p.price,
     isNew: Date.now() - new Date(p.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
-    images: p.images.length
-      ? p.images.map((img) => img.url)
-      : (p.variants[0]?.imageUrl ? [p.variants[0].imageUrl] : []),
+    images: p.images.length ? p.images.map((img) => img.url) : variantImages(p.variants[0]),
     variants: p.variants.map((v) => ({
       colour: v.colour,
       hex: v.hex || '#888888',
       image: v.imageUrl || (p.images[0]?.url ?? ''),
+      images: variantImages(v),
       sizes: Object.fromEntries(v.sizes.map((s) => [s.size, s.quantity])),
     })),
   }
