@@ -19,7 +19,10 @@ function describeGenerateCardError(err) {
   return err.message || 'Something went wrong generating the card.'
 }
 
-function PhotoSlot({ label, required, preview, onChange, disabled }) {
+// `capture` is opt-in per slot: Mode A wants the camera to open straight away,
+// Mode B wants the OS picker (Photo Library / Take Photo / Browse) because the
+// card already exists in the staff member's gallery.
+function PhotoSlot({ label, required, preview, onChange, disabled, capture }) {
   return (
     <label
       className={`relative flex h-36 w-28 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed p-2 text-center text-xs text-slate-500 ${
@@ -37,7 +40,7 @@ function PhotoSlot({ label, required, preview, onChange, disabled }) {
       <input
         type="file"
         accept="image/*"
-        capture="environment"
+        capture={capture}
         className="absolute inset-0 cursor-pointer opacity-0"
         disabled={disabled}
         onChange={(e) => {
@@ -174,8 +177,8 @@ function ShootMode({ onApproved }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-3">
-        <PhotoSlot label="Front photo" required preview={frontPreview} onChange={pickFront} />
-        <PhotoSlot label="Back photo (optional)" preview={backPreview} onChange={pickBack} />
+        <PhotoSlot label="Front photo" required capture="environment" preview={frontPreview} onChange={pickFront} />
+        <PhotoSlot label="Back photo (optional)" capture="environment" preview={backPreview} onChange={pickBack} />
       </div>
 
       <button
